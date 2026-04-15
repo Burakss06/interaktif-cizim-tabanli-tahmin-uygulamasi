@@ -7,9 +7,6 @@ import random
 
 class CizimTahminArayuzu:
     """
-    Makine Öğrenimi modelleri için veri toplama ve ön işleme (preprocessing)
-    işlemlerini simüle eden interaktif çizim arayüzü.
-
     Mevcut durum : model.predict() yerine rastgele sınıf döndürülüyor.
     İleride      : veriyi_on_isle() çıktısı gerçek modele verilecek.
     """
@@ -59,7 +56,7 @@ class CizimTahminArayuzu:
         self.tuval.bind("<B1-Motion>",       self.cizimi_surdur)
         self.tuval.bind("<ButtonRelease-1>", self.cizimi_bitir)
 
-        # ── Sağ: kontrol paneli ───────────────
+        # Sağ: kontrol paneli
         sag = tk.Frame(self.pencere, bg="#1e1e2e")
         sag.pack(side=tk.RIGHT, padx=(12, PAD), pady=PAD, fill=tk.Y)
 
@@ -122,7 +119,7 @@ class CizimTahminArayuzu:
                   activebackground="#45475a",
                   activeforeground="#f38ba8").pack()
 
-    # ── Çizim ────────────────────────────────
+    # Çizim 
     def cizime_basla(self, event):
         self.onceki_x, self.onceki_y = event.x, event.y
 
@@ -148,14 +145,8 @@ class CizimTahminArayuzu:
         self.guven_etiketi.config( text="")
         self.bilgi_etiketi.config( text="Çizin ve tahmin ettirin.")
 
-    # ── Ön işleme ────────────────────────────
+    # Ön işleme
     def veriyi_on_isle(self) -> np.ndarray:
-        """
-        1. 28×28'e yeniden boyutlandır
-        2. Gri tonlamaya çevir (Grayscale)
-        3. Rengi ters çevir  → siyah zemin, beyaz çizgi
-        4. [0, 1] aralığına normalize et
-        """
         kucuk  = self.sanal_resim.resize((self.model_girdi, self.model_girdi)).convert("L")
         matris = 255 - np.array(kucuk)
 
@@ -166,17 +157,17 @@ class CizimTahminArayuzu:
 
         return matris / 255.0
 
-    # ── Tahmin simülasyonu ────────────────────
+    # Tahmin simülasyonu
     def tahmin_simulasyonu(self):
         """
         TODO: sahte_tahmin satırını  model.predict(veri.reshape(1,28,28,1))  ile değiştir.
         """
         veri = self.veriyi_on_isle()
 
-        # ── İleride buraya gerçek model gelecek ──────────────────────────
+        # İleride buraya gerçek model gelecek
         sahte_tahmin = random.choice(self.SINIFLAR)
         sahte_guven  = random.randint(42, 97)
-        # ─────────────────────────────────────────────────────────────────
+
 
         renk = ("#a6e3a1" if sahte_guven >= 75 else
                 "#f9e2af" if sahte_guven >= 55 else
