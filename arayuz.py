@@ -1,20 +1,9 @@
-# Başlangıç Kodu
 import tkinter as tk
-from PIL import Image, ImageDraw, ImageTk
 import numpy as np
-import random
-
+from PIL import Image, ImageDraw, ImageTk
+from tahmin_motoru import tahmin_motoru  # Diğer dosyayı içeri aktarıyoruz
 
 class CizimTahminArayuzu:
-    """
-    Mevcut durum : model.predict() yerine rastgele sınıf döndürülüyor.
-    İleride      : veriyi_on_isle() çıktısı gerçek modele verilecek.
-    """
-
-    SINIFLAR = [
-        "Kedi", "Köpek", "Ev", "Araba", "Bisiklet",
-        "Elma", "Ağaç", "Güneş", "Balık", "Yıldız",
-    ]
     ONIZLEME_PX = 140
 
     def __init__(self, pencere: tk.Tk):
@@ -24,7 +13,9 @@ class CizimTahminArayuzu:
         self.pencere.configure(bg="#1e1e2e")
 
         self.tuval_boyutu = 360
-        self.model_girdi  = 28
+        
+        # Model yardımcısını buraya bağlıyoruz
+        self.ai = tahmin_motoru()
 
         self.sanal_resim = Image.new("RGB", (self.tuval_boyutu, self.tuval_boyutu), "white")
         self.cizici      = ImageDraw.Draw(self.sanal_resim)
@@ -64,20 +55,16 @@ class CizimTahminArayuzu:
                  font=("Consolas", 10, "bold"),
                  bg="#1e1e2e", fg="#cdd6f4").pack(anchor="w", pady=(0, 4))
 
-        # Ön izleme: sabit piksel kutusu (pack_propagate=False çocuk label'ın
-        # kutuyu genişletmesini engeller — karakter-birimi sorununu düzeltir)
         onizleme_dis = tk.Frame(sag, bg="#313244", padx=1, pady=1)
         onizleme_dis.pack(anchor="w")
 
         onizleme_ic = tk.Frame(onizleme_dis, bg="#11111b",
                                width=self.ONIZLEME_PX, height=self.ONIZLEME_PX)
         onizleme_ic.pack()
-        onizleme_ic.pack_propagate(False)   # ← kritik
+        onizleme_ic.pack_propagate(False)
 
         self.veri_ekrani = tk.Label(onizleme_ic, bg="#11111b")
-        self.veri_ekrani.place(x=0, y=0,
-                               width=self.ONIZLEME_PX,
-                               height=self.ONIZLEME_PX)
+        self.veri_ekrani.place(x=0, y=0, width=self.ONIZLEME_PX, height=self.ONIZLEME_PX)
 
         # Sonuç kutusu
         sonuc_kont = tk.Frame(sag, bg="#181825", padx=12, pady=8)
@@ -102,7 +89,7 @@ class CizimTahminArayuzu:
 
         # Butonlar
         tk.Button(sag, text="Tahmin Et",
-                  command=self.tahmin_simulasyonu,
+                  command=self.tahmin_butonuna_basildi,
                   bg="#89b4fa", fg="#1e1e2e",
                   font=("Consolas", 10, "bold"),
                   relief=tk.FLAT, width=20, height=2,
@@ -119,7 +106,6 @@ class CizimTahminArayuzu:
                   activebackground="#45475a",
                   activeforeground="#f38ba8").pack()
 
-    # Çizim 
     def cizime_basla(self, event):
         self.onceki_x, self.onceki_y = event.x, event.y
 
@@ -145,43 +131,25 @@ class CizimTahminArayuzu:
         self.guven_etiketi.config( text="")
         self.bilgi_etiketi.config( text="Çizin ve tahmin ettirin.")
 
-    # Ön işleme
-    def veriyi_on_isle(self) -> np.ndarray:
-        kucuk  = self.sanal_resim.resize((self.model_girdi, self.model_girdi)).convert("L")
-        matris = 255 - np.array(kucuk)
+    def tahmin_butonuna_basildi(self):
+        # Orijinal resmi model yardımcısına gönderip sonuçları alıyoruz
+        tahmin, guven, matris = self.ai.tahmin_et(self.sanal_resim)
 
-        gorsel = Image.fromarray(matris).resize(
+        # Gelen matrisi sağdaki küçük 28x28 önizleme kutusuna basıyoruz (UI İşlemi)
+        gorsel_matris = (matris * 255).astype(np.uint8)
+        gorsel = Image.fromarray(gorsel_matris).resize(
             (self.ONIZLEME_PX, self.ONIZLEME_PX), Image.NEAREST)
         self.tk_gorsel = ImageTk.PhotoImage(image=gorsel)
         self.veri_ekrani.config(image=self.tk_gorsel)
 
-        return matris / 255.0
-
-    # Tahmin simülasyonu
-    def tahmin_simulasyonu(self):
-        """
-        TODO: sahte_tahmin satırını  model.predict(veri.reshape(1,28,28,1))  ile değiştir.
-        """
-        veri = self.veriyi_on_isle()
-
-        # İleride buraya gerçek model gelecek
-        sahte_tahmin = random.choice(self.SINIFLAR)
-        sahte_guven  = random.randint(42, 97)
-
-
-        renk = ("#a6e3a1" if sahte_guven >= 75 else
-                "#f9e2af" if sahte_guven >= 55 else
+        # Renkleri güven oranına göre ayarlıyoruz
+        renk = ("#a6e3a1" if guven >= 75 else
+                "#f9e2af" if guven >= 55 else
                 "#fab387")
 
-        self.tahmin_etiketi.config(text=sahte_tahmin,            fg=renk)
-        self.guven_etiketi.config( text=f"%{sahte_guven} güven", fg=renk)
+        # Ekrana yazdırma işlemleri
+        self.tahmin_etiketi.config(text=tahmin,            fg=renk)
+        self.guven_etiketi.config( text=f"%{guven} güven", fg=renk)
         self.bilgi_etiketi.config(
-            text=f"shape={veri.shape}  |  dtype={veri.dtype}\n"
-                 f"min={veri.min():.2f}  max={veri.max():.2f}")
-
-
-if __name__ == "__main__":
-    kutu = tk.Tk()
-    CizimTahminArayuzu(kutu)
-    kutu.mainloop()
-# Başlangıç Kodunun Sonu
+            text=f"shape={matris.shape}  |  dtype={matris.dtype}\n"
+                 f"min={matris.min():.2f}  max={matris.max():.2f}")
