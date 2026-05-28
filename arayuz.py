@@ -1,5 +1,8 @@
 import tkinter as tk
 import numpy as np
+import random
+import os
+
 from PIL import Image, ImageDraw, ImageTk
 from tahmin_motoru import tahmin_motoru  # Diğer dosyayı içeri aktarıyoruz
 
