@@ -4,7 +4,7 @@ import random
 import os
 
 from PIL import Image, ImageDraw, ImageTk
-from tahmin_motoru import tahmin_motoru  # Diğer dosyayı içeri aktarıyoruz
+from tahmin_motoru import TahminMotoru  # Diğer dosyayı içeri aktarıyoruz
 
 class CizimTahminArayuzu:
     ONIZLEME_PX = 140
@@ -18,7 +18,7 @@ class CizimTahminArayuzu:
         self.tuval_boyutu = 360
         
         # Model yardımcısını buraya bağlıyoruz
-        self.ai = tahmin_motoru()
+        self.ai = TahminMotoru()
 
         self.sanal_resim = Image.new("RGB", (self.tuval_boyutu, self.tuval_boyutu), "white")
         self.cizici      = ImageDraw.Draw(self.sanal_resim)
