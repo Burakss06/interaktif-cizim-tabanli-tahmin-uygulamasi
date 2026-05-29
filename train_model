@@ -1,0 +1,79 @@
+# train_model.py
+import os
+import numpy as np
+import tensorflow as tf
+
+# 1. Verileri yüklüyoruz
+PROCESSED_DIR = "data/processed"
+
+X_train = np.load(os.path.join(PROCESSED_DIR, "X_train.npy"))
+X_test = np.load(os.path.join(PROCESSED_DIR, "X_test.npy"))
+y_train = np.load(os.path.join(PROCESSED_DIR, "y_train.npy"))
+y_test = np.load(os.path.join(PROCESSED_DIR, "y_test.npy"))
+
+print("Veriler yüklendi...")
+print(f"Eğitim seti boyutu: {X_train.shape}")
+print(f"Test seti boyutu: {X_test.shape}")
+
+# 2. CNN Mimarisi
+model = tf.keras.Sequential([
+    tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Dropout(0.25),
+
+    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Dropout(0.25),
+
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dropout(0.5),
+    
+    tf.keras.layers.Dense(5, activation='softmax')
+])
+
+# 3. Modeli Derleme 
+# Etiketlerimiz (y) direkt sayısal (0, 1, 2..) olduğu için sparse_categorical_crossentropy kullanıyoruz
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+model.summary()
+
+# Model eğitimi (train)
+# epochs=10: Verilerin üzerinden 10 tur geçerek öğrenecek
+print("\nModel eğitimi başlıyor...")
+history = model.fit(X_train, y_train,
+                    epochs=10,
+                    batch_size=64,
+                    validation_data=(X_test, y_test))
+
+# Eğitilen modeli kaydediyoruz
+model.save("quickdraw_model.keras")
+print("\nTebrikler! Model başarıyla eğitildi ve 'quickdraw_model.keras' olarak kaydedildi.")
+
+"""
+Model eğitimi başlıyor...
+Epoch 1/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 13s 55ms/step - accuracy: 0.7830 - loss: 0.5980 - val_accuracy: 0.9080 - val_loss: 0.2656
+Epoch 2/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 11s 60ms/step - accuracy: 0.9118 - loss: 0.2710 - val_accuracy: 0.9427 - val_loss: 0.1833
+Epoch 3/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 11s 60ms/step - accuracy: 0.9358 - loss: 0.2074 - val_accuracy: 0.9480 - val_loss: 0.1571
+Epoch 4/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 11s 59ms/step - accuracy: 0.9417 - loss: 0.1779 - val_accuracy: 0.9537 - val_loss: 0.1389
+Epoch 5/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 20s 58ms/step - accuracy: 0.9467 - loss: 0.1606 - val_accuracy: 0.9603 - val_loss: 0.1305
+Epoch 6/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 10s 52ms/step - accuracy: 0.9528 - loss: 0.1442 - val_accuracy: 0.9613 - val_loss: 0.1212
+Epoch 7/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 12s 62ms/step - accuracy: 0.9585 - loss: 0.1257 - val_accuracy: 0.9620 - val_loss: 0.1152
+Epoch 8/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 20s 62ms/step - accuracy: 0.9608 - loss: 0.1171 - val_accuracy: 0.9607 - val_loss: 0.1132
+Epoch 9/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 20s 60ms/step - accuracy: 0.9632 - loss: 0.1075 - val_accuracy: 0.9623 - val_loss: 0.1071
+Epoch 10/10
+188/188 ━━━━━━━━━━━━━━━━━━━━ 22s 66ms/step - accuracy: 0.9644 - loss: 0.1004 - val_accuracy: 0.9663 - val_loss: 0.1044
+
+Tebrikler! Model başarıyla eğitildi ve 'quickdraw_model.keras' olarak kaydedildi.
+"""

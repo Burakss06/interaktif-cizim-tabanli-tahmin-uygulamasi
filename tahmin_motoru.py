@@ -1,41 +1,58 @@
+# tahmin_motoru.py
+import os
 import numpy as np
-import random
+import tensorflow as tf
 from PIL import Image
 
-class tahmin_motoru:
-    SINIFLAR = [
-        "Kedi", "Köpek", "Ev", "Araba", "Bisiklet",
-        "Elma", "Ağaç", "Güneş", "Balık", "Yıldız",
-    ]
-
+class TahminMotoru:
     def __init__(self):
-        # İleride gerçek model buraya yüklenecek:
-        # from tensorflow.keras.models import load_model
-        # self.model = load_model("quickdraw_model.keras")
-        pass
+        # prepare_dataset.py dosyasındaki tam sıralama (önemli!)
+        # 0 -> cat, 1 -> house, 2 -> car, 3 -> apple, 4 -> sun
+        # Kullanıcıya Türkçe göstermek için burayı Türkçe yapıyoruz ama sıra bozulmamalı.
+        self.siniflar = ["Kedi", "Ev", "Araba", "Elma", "Güneş"]
+        
+        model_yolu = "quickdraw_model.keras"
+        
+        if os.path.exists(model_yolu):
+            print("Yapay zeka modeli başarıyla yükleniyor...")
+            self.model = tf.keras.models.load_model(model_yolu)
+            print("Model yükleme tamamlandı! Tahmine hazır.")
+        else:
+            raise FileNotFoundError(f"Hata: '{model_yolu}' dosyası bulunamadı! Lütfen dosyanın main.py ile aynı yerde olduğundan emin olun.")
 
-    def tahmin_et(self, sanal_resim):
+    def tahmin_et(self, arayuz_resmi):
         """
-        Arayüzden gelen orijinal resmi alır, yapay zekaya uygun 
-        28x28 boyutuna getirir ve tahmini döndürür.
+        Arayüzden (ekrandan) gelen çizimi alır, yapay zekanın anlayacağı
+        28x28 formatına getirir ve gerçek tahmini döndürür.
         """
-        # 1. Resmi 28x28 boyutuna küçült ve gri tona (L) çevir
-        kucuk = sanal_resim.resize((28, 28)).convert("L")
+        # 1. Çizilen resmi yapay zekanın eğitim boyutuna (28x28) küçült ve Gri Tonlamaya (L) çevir
+        kucuk_resim = arayuz_resmi.resize((28, 28)).convert("L")
         
-        # 2. Renkleri tersine çevir (Siyah arka plan, beyaz çizim) ve normalize et
-        matris = (255 - np.array(kucuk)) / 255.0
+        # 2. Resmi sayı matrisine (numpy array) dönüştür
+        matris = np.array(kucuk_resim)
         
-        # --- ŞİMDİLİK SAHTE TAHMİN (Simülasyon) ---
-        tahmin_edilen_sinif = random.choice(self.SINIFLAR)
-        guven_orani = random.randint(42, 97)
-        # ------------------------------------------
+        # KRİTİK ADIM: Renkleri Tersine Çevirme (Invert)
+        # Kullanıcı arayüzde BEYAZ arka plana SİYAH kalemle çizer (Pikseller: Arka plan 255, Çizim 0).
+        # Ama Google Quick Draw verisi SİYAH arka plana BEYAZ çizimdir (Arka plan 0, Çizim 255).
+        # Eğer bu tersine çevirmeyi yapmazsak model saçmalar.
+        matris = 255 - matris
         
-        # İleride gerçek model hazır olduğunda üstteki sahte tahmin silinecek
-        # ve yerine şu kodlar gelecek:
-        # model_girisi = matris.reshape(1, 28, 28, 1)
-        # tahminler = self.model.predict(model_girisi)
-        # indeks = np.argmax(tahminler[0])
-        # tahmin_edilen_sinif = self.SINIFLAR[indeks]
-        # guven_orani = int(tahminler[0][indeks] * 100)
+        # 3. Normalizasyon: Sayıları 0-255 arasından 0.0 - 1.0 arasına getir 
+        matris = matris.astype("float32") / 255.0
         
-        return tahmin_edilen_sinif, guven_orani, matris
+        # 4. Boyut Ekleme: Tek bir resmi modelin beklediği (1, 28, 28, 1) formatına sokuyoruz
+        # (1 adet resim, 28 genişlik, 28 yükseklik, 1 renk kanalı)
+        model_girisi = matris.reshape(1, 28, 28, 1)
+        
+        # 5. GERÇEK YAPAY ZEKA TAHMİNİ
+        tahminler = self.model.predict(model_girisi, verbose=0) # verbose=0 terminali kirletmesin diye
+        
+        # En yüksek olasılığa sahip sınıfın indeksini bul (Örn: 2 çıktıysa 'Araba')
+        en_yuksek_indeks = np.argmax(tahminler[0])
+        
+        # Güven oranını yüzdeye çevir (Örn: 0.89 -> %89)
+        guven_orani = int(tahminler[0][en_yuksek_indeks] * 100)
+        
+        tahmin_edilen_etiket = self.siniflar[en_yuksek_indeks]
+        
+        return tahmin_edilen_etiket, guven_orani, matris
