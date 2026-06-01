@@ -4,18 +4,18 @@ import numpy as np
 # Quick Draw veri setinden kullanacağımız sınıflar
 # Sıralama çok önemlidir çünkü model çıktıları bu sıraya göre yorumlanacaktır.
 # 0 -> cat, 1 -> house, 2 -> car, 3 -> apple, 4 -> sun
-# 5 -> dog, 6 -> bird, 7 -> tree, 8 -> bicycle, 9 -> clock
+# 5 -> bird, 6 -> tree, 7 -> bicycle, 8 -> fish, 9 -> flower
 CLASSES = [
     "cat",
     "house",
     "car",
     "apple",
     "sun",
-    "dog",
     "bird",
     "tree",
     "bicycle",
-    "clock"
+    "fish",
+    "flower"
 ]
 
 # Ham .npy dosyalarının bulunduğu klasör
