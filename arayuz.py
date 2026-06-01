@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 import numpy as np
 import random
 import os
@@ -135,6 +136,14 @@ class CizimTahminArayuzu:
         self.bilgi_etiketi.config( text="Çizin ve tahmin ettirin.")
 
     def tahmin_butonuna_basildi(self):
+        # Boş Çizim Kontrolü: Çizim alanındaki pikselleri kontrol ediyoruz.
+        # Eğer en küçük piksel değeri 255 ise (yani tuval tamamen beyazsa, hiç siyah çizgi yoksa) uyarırız.
+        gri_matris = np.array(self.sanal_resim.convert("L"))
+        if np.min(gri_matris) == 255:
+            messagebox.showwarning("Boş Çizim Uyarısı", "Lütfen tahmin etmeden önce çizim alanına bir şeyler çizin!")
+            self.bilgi_etiketi.config(text="Uyarı: Boş tuval tahmin edilemez!", fg="#f38ba8")
+            return
+
         # Orijinal resmi model yardımcısına gönderip sonuçları alıyoruz
         tahmin, guven, matris = self.ai.tahmin_et(self.sanal_resim)
 
