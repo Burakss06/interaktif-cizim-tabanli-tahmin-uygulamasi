@@ -4,7 +4,19 @@ import numpy as np
 # Quick Draw veri setinden kullanacağımız sınıflar
 # Sıralama çok önemlidir çünkü model çıktıları bu sıraya göre yorumlanacaktır.
 # 0 -> cat, 1 -> house, 2 -> car, 3 -> apple, 4 -> sun
-CLASSES = ["cat", "house", "car", "apple", "sun"]
+# 5 -> dog, 6 -> bird, 7 -> tree, 8 -> bicycle, 9 -> clock
+CLASSES = [
+    "cat",
+    "house",
+    "car",
+    "apple",
+    "sun",
+    "dog",
+    "bird",
+    "tree",
+    "bicycle",
+    "clock"
+]
 
 # Ham .npy dosyalarının bulunduğu klasör
 RAW_DIR = "data/raw"
@@ -13,7 +25,7 @@ RAW_DIR = "data/raw"
 PROCESSED_DIR = "data/processed"
 
 # Her sınıftan kaç örnek alınacağı
-# 5 sınıf x 3000 örnek = toplam 15000 veri
+# 10 sınıf x 3000 örnek = toplam 30000 veri
 SAMPLES_PER_CLASS = 3000
 
 # Verinin %20'si test, %80'i eğitim için ayrılacak
