@@ -773,7 +773,7 @@ class CizimTahminArayuzu:
         word_list_frame.rol = "dis"
         word_list_frame.grid(row=0, column=1, sticky="nsew", padx=(15, 0), pady=10)
         
-        lbl_words_title = ctk.CTkLabel(word_list_frame, text="Tahmin Edilebilir Sınıflar (10 Adet):", font=("Segoe UI", 16, "bold"))
+        lbl_words_title = ctk.CTkLabel(word_list_frame, text=f"Tahmin Edilebilir Sınıflar ({len(self.ai.siniflar)} Adet):", font=("Segoe UI", 16, "bold"))
         lbl_words_title.rol = "yazi_yardimci"
         lbl_words_title.pack(anchor="w", padx=25, pady=(20, 10))
         
@@ -1146,10 +1146,7 @@ class CizimTahminArayuzu:
             sanal_x2 = event.x * w_ratio
             sanal_y2 = event.y * h_ratio
             
-            if self.serbest_silgi_modu:
-                sanal_kalinlik = max(1, int(round(self.serbest_firca_kalinligi * min(w_ratio, h_ratio))))
-            else:
-                sanal_kalinlik = max(16, int(round(self.serbest_firca_kalinligi * min(w_ratio, h_ratio))))
+            sanal_kalinlik = max(1, int(round(self.serbest_firca_kalinligi * min(w_ratio, h_ratio))))
             sanal_cizim_rengi = "white" if self.serbest_silgi_modu else "black"
             
             self.cizici.line([sanal_x1, sanal_y1, sanal_x2, sanal_y2],
@@ -1179,10 +1176,7 @@ class CizimTahminArayuzu:
             sanal_x2 = event.x * w_ratio
             sanal_y2 = event.y * h_ratio
             
-            if self.oyun_silgi_modu:
-                sanal_kalinlik = max(1, int(round(self.oyun_firca_kalinligi * min(w_ratio, h_ratio))))
-            else:
-                sanal_kalinlik = max(16, int(round(self.oyun_firca_kalinligi * min(w_ratio, h_ratio))))
+            sanal_kalinlik = max(1, int(round(self.oyun_firca_kalinligi * min(w_ratio, h_ratio))))
             sanal_cizim_rengi = "white" if self.oyun_silgi_modu else "black"
             
             self.oyun_cizici.line([sanal_x1, sanal_y1, sanal_x2, sanal_y2],

@@ -108,8 +108,13 @@ class TahminMotoru:
         # Eğer bu tersine çevirmeyi yapmazsak model saçmalar.
         matris = 255 - matris
         
-        # 3. Normalizasyon: Sayıları 0-255 arasından 0.0 - 1.0 arasına getir 
-        matris = matris.astype("float32") / 255.0
+        # 3. Normalizasyon: Sayıları 0-255 arasından 0.0 - 1.0 arasına getir
+        # Maksimum piksel değerine bölerek (Max Normalization) fırça inceldiğinde bile çizim kontrastını %100 koruyoruz.
+        max_val = matris.max()
+        if max_val > 0:
+            matris = matris.astype("float32") / max_val
+        else:
+            matris = matris.astype("float32") / 255.0
         
         # 4. Boyut Ekleme: Tek bir resmi modelin beklediği (1, 28, 28, 1) formatına sokuyoruz
         # (1 adet resim, 28 genişlik, 28 yükseklik, 1 renk kanalı)
