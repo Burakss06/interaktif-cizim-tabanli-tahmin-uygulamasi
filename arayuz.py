@@ -6,15 +6,30 @@ from PIL import Image, ImageDraw, ImageTk
 from tahmin_motoru import TahminMotoru
 
 class ToolTip:
-    def __init__(self, widget, text):
+    def __init__(self, widget, text, delay=300):
         self.widget = widget
         self.text = text
+        self.delay = delay
         self.tip_window = None
-        self.widget.bind("<Enter>", self.show_tip)
+        self.after_id = None
+        self.widget.bind("<Enter>", self.schedule_tip)
         self.widget.bind("<Leave>", self.hide_tip)
         self.widget.bind("<Button-1>", self.hide_tip)
 
+    def schedule_tip(self, event=None):
+        self.cancel_scheduled()
+        self.after_id = self.widget.after(self.delay, self.show_tip)
+
+    def cancel_scheduled(self):
+        if self.after_id:
+            try:
+                self.widget.after_cancel(self.after_id)
+            except Exception:
+                pass
+            self.after_id = None
+
     def show_tip(self, event=None):
+        self.after_id = None
         if self.tip_window or not self.text:
             return
         x = self.widget.winfo_rootx() + self.widget.winfo_width() + 8
@@ -41,10 +56,14 @@ class ToolTip:
         label.pack(ipadx=1)
 
     def hide_tip(self, event=None):
+        self.cancel_scheduled()
         tw = self.tip_window
         self.tip_window = None
         if tw:
-            tw.destroy()
+            try:
+                tw.destroy()
+            except Exception:
+                pass
 
 # 8 Gelişmiş Tema Özelleştirmesi için Catppuccin ve Retro Renk Paletleri
 THEMES = {
@@ -526,7 +545,7 @@ class CizimTahminArayuzu:
 
         self.tuval = tk.Canvas(self.cerceve, bg="white", highlightthickness=0)
         self.tuval.pack(padx=2, pady=2, fill="both", expand=True)
-        self.tuval.configure(cursor="pencil")
+        self.tuval.configure(cursor="none")
         
         # Olay bağlamaları
         self.tuval.bind("<Button-1>",        self.cizime_basla)
@@ -803,7 +822,7 @@ class CizimTahminArayuzu:
 
         self.oyun_tuval = tk.Canvas(self.oyun_cerceve, bg="white", highlightthickness=0)
         self.oyun_tuval.pack(padx=2, pady=2, fill="both", expand=True)
-        self.oyun_tuval.configure(cursor="pencil")
+        self.oyun_tuval.configure(cursor="none")
         
         self.oyun_tuval.bind("<Button-1>",        self.oyun_cizime_basla)
         self.oyun_tuval.bind("<B1-Motion>",       self.oyun_cizimi_surdur)
@@ -1054,6 +1073,10 @@ class CizimTahminArayuzu:
         if hasattr(self, "temalar_scroll") and parent == self.temalar_scroll:
             return
             
+        parent_type = parent.__class__.__name__
+        if parent_type in ["CTkSegmentedButton", "CTkOptionMenu", "CTkSlider", "CTkProgressBar", "CTkComboBox", "CTkSwitch", "CTkCheckBox"]:
+            return
+            
         for child in parent.winfo_children():
             if hasattr(self, "temalar_scroll") and (child == self.temalar_scroll or str(child).startswith(str(self.temalar_scroll))):
                 continue
@@ -1127,7 +1150,14 @@ class CizimTahminArayuzu:
                 child.configure(button_color=tema["mavi"], button_hover_color=tema["mavi_hover"], fg_color=tema["surface0"], progress_color=tema["mavi"])
                 
             elif w_type == "CTkSegmentedButton":
-                child.configure(selected_color=tema["mavi"], selected_hover_color=tema["mavi_hover"])
+                child.configure(
+                    selected_color=tema["mavi"],
+                    selected_hover_color=tema["mavi_hover"],
+                    fg_color=tema["surface0"],
+                    unselected_color=tema["kutu_bg"],
+                    unselected_hover_color=tema["surface0"],
+                    text_color=tema["yazi_ana"]
+                )
                 
             elif w_type == "CTkOptionMenu":
                 child.configure(fg_color=tema["surface0"], button_color=tema["surface0"], button_hover_color=tema["border_renk"], 
@@ -1210,7 +1240,7 @@ class CizimTahminArayuzu:
         if value == "Kalem ✏️":
             self.serbest_silgi_modu = False
             self.serbest_secilen_renk = "black"
-            self.tuval.configure(cursor="pencil")
+            self.tuval.configure(cursor="none")
             self.slider_title.configure(text="Çizgi Kalınlığı:")
             self.slider.configure(from_=5, to=40, number_of_steps=35)
             self.slider.set(self.serbest_kalem_kalinligi)
@@ -1367,24 +1397,34 @@ class CizimTahminArayuzu:
         if event:
             self.son_fare_x = event.x
             self.son_fare_y = event.y
+        r = self.serbest_firca_kalinligi / 2
         if self.serbest_silgi_modu:
-            r = self.serbest_firca_kalinligi / 2
             outline_color = "#d20f39" if ctk.get_appearance_mode() == "light" else "#f38ba8"
-            self.tuval.create_oval(self.son_fare_x - r, self.son_fare_y - r, 
-                                   self.son_fare_x + r, self.son_fare_y + r,
-                                   outline=outline_color, width=1.5, tags="silgi_imleci")
+            dash_pattern = (4, 4)
+        else:
+            outline_color = self.aktif_tema["mavi"]
+            dash_pattern = None
+            
+        self.tuval.create_oval(self.son_fare_x - r, self.son_fare_y - r, 
+                               self.son_fare_x + r, self.son_fare_y + r,
+                               outline=outline_color, width=1.5, dash=dash_pattern, tags="silgi_imleci")
 
     def oyun_imlec_guncelle(self, event=None):
         self.oyun_tuval.delete("silgi_imleci")
         if event:
             self.son_fare_x = event.x
             self.son_fare_y = event.y
+        r = self.oyun_firca_kalinligi / 2
         if self.oyun_silgi_modu:
-            r = self.oyun_firca_kalinligi / 2
             outline_color = "#d20f39" if ctk.get_appearance_mode() == "light" else "#f38ba8"
-            self.oyun_tuval.create_oval(self.son_fare_x - r, self.son_fare_y - r, 
-                                        self.son_fare_x + r, self.son_fare_y + r,
-                                        outline=outline_color, width=1.5, tags="silgi_imleci")
+            dash_pattern = (4, 4)
+        else:
+            outline_color = self.aktif_tema["mavi"]
+            dash_pattern = None
+            
+        self.oyun_tuval.create_oval(self.son_fare_x - r, self.son_fare_y - r, 
+                                    self.son_fare_x + r, self.son_fare_y + r,
+                                    outline=outline_color, width=1.5, dash=dash_pattern, tags="silgi_imleci")
 
     def cizime_basla(self, event):
         self.onceki_x, self.onceki_y = event.x, event.y
@@ -1677,7 +1717,7 @@ class CizimTahminArayuzu:
         if value == "Kalem ✏️":
             self.oyun_silgi_modu = False
             self.oyun_secilen_renk = "black"
-            self.oyun_tuval.configure(cursor="pencil")
+            self.oyun_tuval.configure(cursor="none")
             self.oyun_slider_title.configure(text="Çizgi Kalınlığı:")
             self.oyun_slider.configure(from_=5, to=40, number_of_steps=35)
             self.oyun_slider.set(self.oyun_kalem_kalinligi)
@@ -1945,7 +1985,10 @@ class CizimTahminArayuzu:
     def glow_efekti_guncelle(self):
         if not hasattr(self, "glow_sayac"):
             self.glow_sayac = 0.0
-        self.glow_sayac += 0.15
+            
+        # Kombo varsa ışıma hızını artır
+        hiz_carpani = 1.0 + min(2.0, self.oyun_kombo * 0.25) if (hasattr(self, "oyun_kombo") and self.aktif_sekme == "oyun") else 1.0
+        self.glow_sayac += 0.15 * hiz_carpani
         
         # Seçili temanın mavi ve border renklerini alıp aralarında yumuşakça pulse yaptırıyoruz
         c1 = self.aktif_tema["border_renk"]
