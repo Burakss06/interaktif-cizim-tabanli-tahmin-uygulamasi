@@ -583,26 +583,21 @@ class CizimTahminArayuzu:
         lbl_probs.rol = "yazi_ana"
         lbl_probs.pack(anchor="w", padx=15, pady=(8, 4))
 
-        olasilik_konteyner = ctk.CTkFrame(olasilik_kont, fg_color="transparent")
-        olasilik_konteyner.pack(fill="both", expand=True, padx=10, pady=2)
+        self.olasilik_scroll = ctk.CTkScrollableFrame(olasilik_kont, fg_color="#181825")
+        self.olasilik_scroll.rol = "ic"
+        self.olasilik_scroll.pack(fill="both", expand=True, padx=10, pady=2)
 
-        sol_barlar_frame = ctk.CTkFrame(olasilik_konteyner, fg_color="transparent")
-        sol_barlar_frame.pack(side="left", fill="both", expand=True)
-
-        sag_barlar_frame = ctk.CTkFrame(olasilik_konteyner, fg_color="transparent")
-        sag_barlar_frame.pack(side="right", fill="both", expand=True)
-
+        self.sinif_satirlari = {}
         for idx, sinif_adi in enumerate(self.ai.siniflar):
-            hedef_frame = sol_barlar_frame if idx < 5 else sag_barlar_frame
-            
-            satir = ctk.CTkFrame(hedef_frame, fg_color="transparent")
+            satir = ctk.CTkFrame(self.olasilik_scroll, fg_color="transparent")
             satir.pack(fill="x", padx=8, pady=2)
+            self.sinif_satirlari[sinif_adi] = satir
             
-            lbl = ctk.CTkLabel(satir, text=sinif_adi, font=("Segoe UI", 10, "bold"), width=55, anchor="w")
+            lbl = ctk.CTkLabel(satir, text=sinif_adi, font=("Segoe UI", 11, "bold"), width=70, anchor="w")
             lbl.rol = "yazi_ana"
             lbl.pack(side="left")
             
-            yuzde = ctk.CTkLabel(satir, text="%0", font=("Segoe UI", 10), width=30, anchor="e")
+            yuzde = ctk.CTkLabel(satir, text="%0", font=("Segoe UI", 11), width=35, anchor="e")
             yuzde.rol = "yesil"
             yuzde.pack(side="right")
             self.yuzde_etiketleri[sinif_adi] = yuzde
@@ -610,7 +605,7 @@ class CizimTahminArayuzu:
             bar = ctk.CTkProgressBar(satir, height=8, corner_radius=4)
             bar.rol = "mavi"
             bar.set(0.0)
-            bar.pack(side="left", fill="x", expand=True, padx=5)
+            bar.pack(side="left", fill="x", expand=True, padx=8)
             self.barlar[sinif_adi] = bar
 
         buton_grubu = ctk.CTkFrame(sag, fg_color="transparent")
@@ -660,22 +655,17 @@ class CizimTahminArayuzu:
         lbl_dist.rol = "yazi_ana"
         lbl_dist.pack(anchor="w", padx=15, pady=(8, 4))
 
-        detay_olasilik_konteyner = ctk.CTkFrame(detay_olasilik, fg_color="transparent")
-        detay_olasilik_konteyner.pack(fill="both", expand=True, padx=10, pady=2)
+        self.sonuc_olasilik_scroll = ctk.CTkScrollableFrame(detay_olasilik, fg_color="#181825")
+        self.sonuc_olasilik_scroll.rol = "ic"
+        self.sonuc_olasilik_scroll.pack(fill="both", expand=True, padx=10, pady=2)
 
-        sonuc_sol_barlar = ctk.CTkFrame(detay_olasilik_konteyner, fg_color="transparent")
-        sonuc_sol_barlar.pack(side="left", fill="both", expand=True)
-
-        sonuc_sag_barlar = ctk.CTkFrame(detay_olasilik_konteyner, fg_color="transparent")
-        sonuc_sag_barlar.pack(side="right", fill="both", expand=True)
-
+        self.sonuc_sinif_satirlari = {}
         for idx, sinif_adi in enumerate(self.ai.siniflar):
-            hedef_frame = sonuc_sol_barlar if idx < 5 else sonuc_sag_barlar
-            
-            satir = ctk.CTkFrame(hedef_frame, fg_color="transparent")
+            satir = ctk.CTkFrame(self.sonuc_olasilik_scroll, fg_color="transparent")
             satir.pack(fill="x", padx=8, pady=4)
+            self.sonuc_sinif_satirlari[sinif_adi] = satir
             
-            lbl = ctk.CTkLabel(satir, text=sinif_adi, font=("Segoe UI", 11, "bold"), width=55, anchor="w")
+            lbl = ctk.CTkLabel(satir, text=sinif_adi, font=("Segoe UI", 11, "bold"), width=70, anchor="w")
             lbl.rol = "yazi_ana"
             lbl.pack(side="left")
             
@@ -687,7 +677,7 @@ class CizimTahminArayuzu:
             bar = ctk.CTkProgressBar(satir, height=10, corner_radius=5)
             bar.rol = "yesil"
             bar.set(0.0)
-            bar.pack(side="left", fill="x", expand=True, padx=5)
+            bar.pack(side="left", fill="x", expand=True, padx=8)
             self.sonuc_barlar[sinif_adi] = bar
 
         sonuc_buton_grubu = ctk.CTkFrame(sonuc_sag, fg_color="transparent")
@@ -1070,7 +1060,7 @@ class CizimTahminArayuzu:
                 
             w_type = child.__class__.__name__
             
-            if w_type == "CTkFrame":
+            if w_type in ["CTkFrame", "CTkScrollableFrame"]:
                 current_fg = child.cget("fg_color")
                 if current_fg != "transparent" and current_fg is not None:
                     if child == self.sidebar:
@@ -1599,10 +1589,20 @@ class CizimTahminArayuzu:
         self.sonuc_tahmin_etiketi.configure(text=f"Bu bir {tahmin}!", text_color=renk)
         self.sonuc_guven_etiketi.configure(text=f"%{guven} Doğruluk Olasılığı", text_color=renk)
 
+        guncel_olasiliklar = []
         for i, sinif_adi in enumerate(self.ai.siniflar):
             olasılık = float(olasiliklar[i])
             self.sonuc_barlar[sinif_adi].set(olasılık)
             self.sonuc_yuzde_etiketleri[sinif_adi].configure(text=f"%{int(olasılık * 100)}")
+            guncel_olasiliklar.append((sinif_adi, olasılık))
+
+        # En yüksekten en düşüğe sırala ve yeniden paketle
+        guncel_olasiliklar.sort(key=lambda x: x[1], reverse=True)
+        for sinif_adi, _ in guncel_olasiliklar:
+            if hasattr(self, "sonuc_sinif_satirlari") and sinif_adi in self.sonuc_sinif_satirlari:
+                satir = self.sonuc_sinif_satirlari[sinif_adi]
+                satir.pack_forget()
+                satir.pack(fill="x", padx=8, pady=4)
 
         self.ekran_degistir("sonuc")
 
@@ -1622,6 +1622,10 @@ class CizimTahminArayuzu:
             for sinif in self.ai.siniflar:
                 self.barlar[sinif].set(0.0)
                 self.yuzde_etiketleri[sinif].configure(text="%0")
+                if hasattr(self, "sinif_satirlari") and sinif in self.sinif_satirlari:
+                    satir = self.sinif_satirlari[sinif]
+                    satir.pack_forget()
+                    satir.pack(fill="x", padx=8, pady=2)
             return
 
         tahmin, guven, matris, olasiliklar, act_map = self.ai.tahmin_et(self.sanal_resim)
@@ -1654,10 +1658,20 @@ class CizimTahminArayuzu:
             text=f"CNN Aktivasyon Haritası | Güven: %{guven}",
             text_color=self.aktif_tema["yazi_aciklama"])
 
+        guncel_olasiliklar = []
         for i, sinif_adi in enumerate(self.ai.siniflar):
             olasılık = float(olasiliklar[i])
             self.barlar[sinif_adi].set(olasılık)
             self.yuzde_etiketleri[sinif_adi].configure(text=f"%{int(olasılık * 100)}")
+            guncel_olasiliklar.append((sinif_adi, olasılık))
+
+        # En yüksekten en düşüğe sırala ve yeniden paketle
+        guncel_olasiliklar.sort(key=lambda x: x[1], reverse=True)
+        for sinif_adi, _ in guncel_olasiliklar:
+            if hasattr(self, "sinif_satirlari") and sinif_adi in self.sinif_satirlari:
+                satir = self.sinif_satirlari[sinif_adi]
+                satir.pack_forget()
+                satir.pack(fill="x", padx=8, pady=2)
 
     def oyun_arac_degistir(self, value):
         if value == "Kalem ✏️":
