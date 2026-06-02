@@ -1399,6 +1399,7 @@ class CizimTahminArayuzu:
             self.son_fare_y = event.y
         r = self.serbest_firca_kalinligi / 2
         if self.serbest_silgi_modu:
+            r = (int(self.serbest_firca_kalinligi * 1.25) + 2) / 2
             outline_color = "#d20f39" if ctk.get_appearance_mode() == "light" else "#f38ba8"
             dash_pattern = (4, 4)
         else:
@@ -1416,6 +1417,7 @@ class CizimTahminArayuzu:
             self.son_fare_y = event.y
         r = self.oyun_firca_kalinligi / 2
         if self.oyun_silgi_modu:
+            r = (int(self.oyun_firca_kalinligi * 1.25) + 2) / 2
             outline_color = "#d20f39" if ctk.get_appearance_mode() == "light" else "#f38ba8"
             dash_pattern = (4, 4)
         else:
@@ -1428,15 +1430,44 @@ class CizimTahminArayuzu:
 
     def cizime_basla(self, event):
         self.onceki_x, self.onceki_y = event.x, event.y
+        # Çizim başlangıcında PIL üzerinde yuvarlak bir nokta koy (tek tık desteği ve yuvarlak başlık)
+        canvas_w = self.tuval.winfo_width()
+        canvas_h = self.tuval.winfo_height()
+        w_ratio = self.sanal_boyut / max(1, canvas_w)
+        h_ratio = self.sanal_boyut / max(1, canvas_h)
+        sanal_x = event.x * w_ratio
+        sanal_y = event.y * h_ratio
+        sanal_kalinlik = max(1, int(round(self.serbest_firca_kalinligi * min(w_ratio, h_ratio))))
+        sanal_cizim_rengi = "white" if self.serbest_silgi_modu else "black"
+        if self.serbest_silgi_modu:
+            sanal_kalinlik = int(sanal_kalinlik * 1.25) + 2
+        r = sanal_kalinlik / 2
+        self.cizici.ellipse([sanal_x - r, sanal_y - r, sanal_x + r, sanal_y + r], fill=sanal_cizim_rengi)
 
     def oyun_cizime_basla(self, event):
         self.oyun_onceki_x, self.oyun_onceki_y = event.x, event.y
+        # Çizim başlangıcında PIL üzerinde yuvarlak bir nokta koy
+        canvas_w = self.oyun_tuval.winfo_width()
+        canvas_h = self.oyun_tuval.winfo_height()
+        w_ratio = self.sanal_boyut / max(1, canvas_w)
+        h_ratio = self.sanal_boyut / max(1, canvas_h)
+        sanal_x = event.x * w_ratio
+        sanal_y = event.y * h_ratio
+        sanal_kalinlik = max(1, int(round(self.oyun_firca_kalinligi * min(w_ratio, h_ratio))))
+        sanal_cizim_rengi = "white" if self.oyun_silgi_modu else "black"
+        if self.oyun_silgi_modu:
+            sanal_kalinlik = int(sanal_kalinlik * 1.25) + 2
+        r = sanal_kalinlik / 2
+        self.oyun_cizici.ellipse([sanal_x - r, sanal_y - r, sanal_x + r, sanal_y + r], fill=sanal_cizim_rengi)
 
     def cizimi_surdur(self, event):
         if self.onceki_x is not None:
+            ekran_kalinligi = self.serbest_firca_kalinligi
+            if self.serbest_silgi_modu:
+                ekran_kalinligi = int(ekran_kalinligi * 1.25) + 2
             self.tuval.create_line(self.onceki_x, self.onceki_y, event.x, event.y,
-                                   width=self.serbest_firca_kalinligi, fill=self.serbest_secilen_renk,
-                                   capstyle=tk.ROUND, tags="cizgi")
+                                   width=ekran_kalinligi, fill=self.serbest_secilen_renk,
+                                   capstyle=tk.ROUND, joinstyle=tk.ROUND, tags="cizgi")
             
             canvas_w = self.tuval.winfo_width()
             canvas_h = self.tuval.winfo_height()
@@ -1452,8 +1483,13 @@ class CizimTahminArayuzu:
             sanal_kalinlik = max(1, int(round(self.serbest_firca_kalinligi * min(w_ratio, h_ratio))))
             sanal_cizim_rengi = "white" if self.serbest_silgi_modu else "black"
             
+            if self.serbest_silgi_modu:
+                sanal_kalinlik = int(sanal_kalinlik * 1.25) + 2
+            
             self.cizici.line([sanal_x1, sanal_y1, sanal_x2, sanal_y2],
                              fill=sanal_cizim_rengi, width=sanal_kalinlik, joint="curve")
+            r = sanal_kalinlik / 2
+            self.cizici.ellipse([sanal_x2 - r, sanal_y2 - r, sanal_x2 + r, sanal_y2 + r], fill=sanal_cizim_rengi)
             
             self.onceki_x, self.onceki_y = event.x, event.y
             self.imlec_guncelle(event)
@@ -1464,9 +1500,12 @@ class CizimTahminArayuzu:
 
     def oyun_cizimi_surdur(self, event):
         if self.oyun_onceki_x is not None:
+            ekran_kalinligi = self.oyun_firca_kalinligi
+            if self.oyun_silgi_modu:
+                ekran_kalinligi = int(ekran_kalinligi * 1.25) + 2
             self.oyun_tuval.create_line(self.oyun_onceki_x, self.oyun_onceki_y, event.x, event.y,
-                                        width=self.oyun_firca_kalinligi, fill=self.oyun_secilen_renk,
-                                        capstyle=tk.ROUND, tags="cizgi")
+                                        width=ekran_kalinligi, fill=self.oyun_secilen_renk,
+                                        capstyle=tk.ROUND, joinstyle=tk.ROUND, tags="cizgi")
             
             canvas_w = self.oyun_tuval.winfo_width()
             canvas_h = self.oyun_tuval.winfo_height()
@@ -1482,8 +1521,13 @@ class CizimTahminArayuzu:
             sanal_kalinlik = max(1, int(round(self.oyun_firca_kalinligi * min(w_ratio, h_ratio))))
             sanal_cizim_rengi = "white" if self.oyun_silgi_modu else "black"
             
+            if self.oyun_silgi_modu:
+                sanal_kalinlik = int(sanal_kalinlik * 1.25) + 2
+            
             self.oyun_cizici.line([sanal_x1, sanal_y1, sanal_x2, sanal_y2],
                                   fill=sanal_cizim_rengi, width=sanal_kalinlik, joint="curve")
+            r = sanal_kalinlik / 2
+            self.oyun_cizici.ellipse([sanal_x2 - r, sanal_y2 - r, sanal_x2 + r, sanal_y2 + r], fill=sanal_cizim_rengi)
             
             self.oyun_onceki_x, self.oyun_onceki_y = event.x, event.y
             self.oyun_imlec_guncelle(event)
