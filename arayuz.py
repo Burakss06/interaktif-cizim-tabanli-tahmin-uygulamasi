@@ -5,6 +5,47 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageTk
 from tahmin_motoru import TahminMotoru
 
+class ToolTip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tip_window = None
+        self.widget.bind("<Enter>", self.show_tip)
+        self.widget.bind("<Leave>", self.hide_tip)
+        self.widget.bind("<Button-1>", self.hide_tip)
+
+    def show_tip(self, event=None):
+        if self.tip_window or not self.text:
+            return
+        x = self.widget.winfo_rootx() + self.widget.winfo_width() + 8
+        y = self.widget.winfo_rooty() + (self.widget.winfo_height() - 25) // 2
+        self.tip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        
+        # Tema renklerini al
+        bg = "#1e1e2e"
+        fg = "#cdd6f4"
+        try:
+            app = self.widget.winfo_toplevel()
+            if hasattr(app, "aktif_tema"):
+                bg = app.aktif_tema["kutu_bg"]
+                fg = app.aktif_tema["yazi_ana"]
+        except Exception:
+            pass
+
+        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
+                         background=bg, foreground=fg,
+                         relief=tk.SOLID, borderwidth=1,
+                         font=("Segoe UI", 10, "bold"), padx=6, pady=4)
+        label.pack(ipadx=1)
+
+    def hide_tip(self, event=None):
+        tw = self.tip_window
+        self.tip_window = None
+        if tw:
+            tw.destroy()
+
 # 8 Gelişmiş Tema Özelleştirmesi için Catppuccin ve Retro Renk Paletleri
 THEMES = {
     "Catppuccin Mocha": {
@@ -246,14 +287,20 @@ class CizimTahminArayuzu:
         self.ai = TahminMotoru()
 
         # Serbest Çizim Ayarları (Ayrı State)
-        self.serbest_firca_kalinligi = 14
+        self.serbest_kalem_kalinligi = 14
+        self.serbest_silgi_kalinligi = 20
+        self.serbest_firca_kalinligi = self.serbest_kalem_kalinligi
         self.serbest_secilen_renk = "black"
         self.serbest_silgi_modu = False
         
         # Mücadele Oyunu Ayarları (Ayrı State)
-        self.oyun_firca_kalinligi = 14
+        self.oyun_kalem_kalinligi = 14
+        self.oyun_silgi_kalinligi = 20
+        self.oyun_firca_kalinligi = self.oyun_kalem_kalinligi
         self.oyun_secilen_renk = "black"
         self.oyun_silgi_modu = False
+        
+        self.sidebar_acik = True
         
         # Son fare konumları (Silgi halkasını güncellemek için)
         self.son_fare_x = 180
@@ -279,14 +326,37 @@ class CizimTahminArayuzu:
         self.tuval_resize_timer = None
         self.oyun_resize_timer = None
 
+        # Geri Al / İleri Al Hafıza Yığınları
+        self.serbest_undo_stack = [self.sanal_resim.copy()]
+        self.serbest_redo_stack = []
+        self.oyun_undo_stack = [self.oyun_sanal_resim.copy()]
+        self.oyun_redo_stack = []
+
+        # Kısayol Tuşları (Ctrl+Z: Geri Al, Ctrl+Y: İleri Al)
+        self.pencere.bind("<Control-z>", self.klavye_geri_al)
+        self.pencere.bind("<Control-y>", self.klavye_ileri_al)
+
         self.barlar = {}
         self.yuzde_etiketleri = {}
         self.sonuc_barlar = {}
         self.sonuc_yuzde_etiketleri = {}
 
+        # Skor, Kombo ve Zorluk Ayarları
+        self.aktif_zorluk = "Orta"
+        self.oyun_sure_limiti = 15
+        self.oyun_skor = 0
+        self.oyun_kombo = 0
+        self.rekorlar = self.high_scores_yukle()
+        self.konfeti_partikulleri = []
+        self.konfeti_aktif = False
+
         self._arayuzu_olustur()
         self.temayi_uygula("Catppuccin Mocha")
         self.sayfa_sec("tuval")
+
+        # Arka Plan Görsel Efekt Döngüleri
+        self.glow_efekti_guncelle()
+        self.pulse_tahmin_guncelle()
 
     def _arayuzu_olustur(self):
         # ==========================================
@@ -298,7 +368,13 @@ class CizimTahminArayuzu:
         
         self.logo_lbl = ctk.CTkLabel(self.sidebar, text="🎨 Çizim AI", font=("Segoe UI", 22, "bold"))
         self.logo_lbl.rol = "logo"
-        self.logo_lbl.pack(pady=(25, 20), padx=20)
+        self.logo_lbl.pack(pady=(25, 5), padx=20)
+        
+        # Menü Açma/Kapama Butonu
+        self.btn_sidebar_toggle = ctk.CTkButton(self.sidebar, text="◀ Menüyü Kapat", font=("Segoe UI", 11, "bold"), height=30,
+                                                fg_color="transparent", border_width=0, command=self.sidebar_toggle)
+        self.btn_sidebar_toggle.pack(pady=(5, 15), padx=15, fill="x")
+        self.btn_sidebar_toggle.rol = "pasif_sekme"
         
         self.sidebar_butonlar = {}
         
@@ -314,6 +390,12 @@ class CizimTahminArayuzu:
             btn.pack(fill="x", padx=15, pady=5)
             self.sidebar_butonlar[name] = btn
             btn.rol = "pasif_sekme"
+
+        # ToolTip'leri Ekle
+        ToolTip(self.sidebar_butonlar["tuval"], "✏️ Serbest Çizim")
+        ToolTip(self.sidebar_butonlar["oyun"], "🎮 Mücadele Oyunu")
+        ToolTip(self.sidebar_butonlar["temalar"], "🎨 Tema Seçimi")
+        ToolTip(self.btn_sidebar_toggle, "☰ Menüyü Kapat/Aç")
 
         # ==========================================
         # 2. SAĞ İÇERİK ALANI (Tüm ekranların griddendiği alan)
@@ -364,11 +446,62 @@ class CizimTahminArayuzu:
         self.sol_baslik.rol = "yazi_ana"
         self.sol_baslik.pack(side="top", pady=(5, 5))
 
-        # Çizim tuvali çerçevesi (Kare en-boy oranını configure tetikleyicisi ayarlar)
-        self.cerceve = ctk.CTkFrame(self.sol_panel_icerik, corner_radius=10, border_width=2)
+        # Orta Düzen (Dikey İkon Barı + Tuval Çerçevesi)
+        self.orta_layout_frame = ctk.CTkFrame(self.sol_panel_icerik, fg_color="transparent")
+        self.orta_layout_frame.pack(side="top", pady=5)
+
+        # 1. Dikey Araç Çubuğu (Toolbar)
+        self.arac_bari = ctk.CTkFrame(self.orta_layout_frame, corner_radius=10)
+        self.arac_bari.rol = "dis"
+        self.arac_bari.pack(side="left", fill="y", padx=(0, 10), pady=2)
+
+        # Kalem Butonu
+        self.btn_kalem = ctk.CTkButton(self.arac_bari, text="✏️", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                       border_width=0, command=lambda: self.arac_degistir("Kalem ✏️"))
+        self.btn_kalem.pack(side="top", padx=6, pady=4)
+        self.btn_kalem.rol = "aktif_sekme"
+        
+        # Silgi Butonu
+        self.btn_silgi = ctk.CTkButton(self.arac_bari, text="🧼", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                       border_width=0, command=lambda: self.arac_degistir("Silgi 🧼"))
+        self.btn_silgi.pack(side="top", padx=6, pady=4)
+        self.btn_silgi.rol = "pasif_sekme"
+
+        # Ayırıcı Hat
+        spacer = ctk.CTkFrame(self.arac_bari, height=2, width=30, fg_color="#44475a")
+        spacer.rol = "border"
+        spacer.pack(side="top", pady=6)
+
+        # Geri Al Butonu
+        self.btn_undo = ctk.CTkButton(self.arac_bari, text="↩️", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                      fg_color="transparent", border_width=0, command=self.serbest_geri_al)
+        self.btn_undo.pack(side="top", padx=6, pady=4)
+        self.btn_undo.rol = "pasif_sekme"
+
+        # İleri Al Butonu
+        self.btn_redo = ctk.CTkButton(self.arac_bari, text="↪️", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                      fg_color="transparent", border_width=0, command=self.serbest_ileri_al)
+        self.btn_redo.pack(side="top", padx=6, pady=4)
+        self.btn_redo.rol = "pasif_sekme"
+
+        # Temizle Butonu
+        self.btn_temizle = ctk.CTkButton(self.arac_bari, text="🧹", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                         border_width=0, command=self.tuvali_temizle)
+        self.btn_temizle.pack(side="top", padx=6, pady=4)
+        self.btn_temizle.rol = "temizle"
+
+        # ToolTip'leri Ekle
+        ToolTip(self.btn_kalem, "✏️ Kalem Modu")
+        ToolTip(self.btn_silgi, "🧼 Silgi Modu")
+        ToolTip(self.btn_undo, "↩️ Geri Al (Ctrl+Z)")
+        ToolTip(self.btn_redo, "↪️ İleri Al (Ctrl+Y)")
+        ToolTip(self.btn_temizle, "🧹 Tuvali Temizle")
+
+        # 2. Çizim tuvali çerçevesi
+        self.cerceve = ctk.CTkFrame(self.orta_layout_frame, corner_radius=10, border_width=2)
         self.cerceve.rol = "cerceve"
-        self.cerceve.pack_propagate(False) # Sıkışmayı engellemek için propagation kapalı!
-        self.cerceve.pack(side="top", pady=5)
+        self.cerceve.pack_propagate(False)
+        self.cerceve.pack(side="left")
 
         self.tuval = tk.Canvas(self.cerceve, bg="white", highlightthickness=0)
         self.tuval.pack(padx=2, pady=2, fill="both", expand=True)
@@ -382,18 +515,9 @@ class CizimTahminArayuzu:
         self.tuval.bind("<Leave>",           lambda e: self.tuval.delete("silgi_imleci"))
         self.tuval.bind("<Configure>",       self.tuval_boyutlandirildi)
 
-        # Kontrol Paneli
+        # Kontrol Paneli (Sadece Kalınlık Slider'ı)
         self.kontrol_frame = ctk.CTkFrame(self.sol_panel_icerik, corner_radius=10)
         self.kontrol_frame.pack(side="top", pady=(5, 5))
-
-        # Araç Seçimi
-        lbl_tool = ctk.CTkLabel(self.kontrol_frame, text="Çizim Aracı:", font=("Segoe UI", 12, "bold"))
-        lbl_tool.rol = "yazi_ana"
-        lbl_tool.pack(anchor="w", padx=15, pady=(8, 4))
-        
-        self.arac_secici = ctk.CTkSegmentedButton(self.kontrol_frame, values=["Kalem ✏️", "Silgi 🧼"], command=self.arac_degistir)
-        self.arac_secici.set("Kalem ✏️")
-        self.arac_secici.pack(fill="x", padx=15, pady=(0, 10))
 
         # Slider Etiket Grubu
         slider_etiket = ctk.CTkFrame(self.kontrol_frame, fg_color="transparent")
@@ -491,12 +615,7 @@ class CizimTahminArayuzu:
 
         self.btn_tahmin = ctk.CTkButton(buton_grubu, text="Tahmin Et", font=("Segoe UI", 12, "bold"), height=40,
                                          command=self.tahmin_butonuna_basildi)
-        self.btn_tahmin.pack(side="left", fill="x", expand=True, padx=(0, 5))
-
-        self.btn_temizle = ctk.CTkButton(buton_grubu, text="Temizle", font=("Segoe UI", 12, "bold"), height=40,
-                                          command=self.tuvali_temizle)
-        self.btn_temizle.rol = "temizle"
-        self.btn_temizle.pack(side="right", fill="x", expand=True, padx=(5, 0))
+        self.btn_tahmin.pack(fill="x", expand=True)
 
     def _sonuc_ekranini_olustur(self):
         self.sonuc_frame.rowconfigure(0, weight=1)
@@ -610,10 +729,62 @@ class CizimTahminArayuzu:
         self.oyun_baslik.rol = "yazi_ana"
         self.oyun_baslik.pack(side="top", pady=(5, 5))
 
-        self.oyun_cerceve = ctk.CTkFrame(self.oyun_sol_panel_icerik, corner_radius=10, border_width=2)
+        # Orta Düzen (Dikey İkon Barı + Tuval Çerçevesi)
+        self.oyun_orta_layout_frame = ctk.CTkFrame(self.oyun_sol_panel_icerik, fg_color="transparent")
+        self.oyun_orta_layout_frame.pack(side="top", pady=5)
+
+        # 1. Dikey Araç Çubuğu (Toolbar - Oyun)
+        self.oyun_arac_bari = ctk.CTkFrame(self.oyun_orta_layout_frame, corner_radius=10)
+        self.oyun_arac_bari.rol = "dis"
+        self.oyun_arac_bari.pack(side="left", fill="y", padx=(0, 10), pady=2)
+
+        # Kalem Butonu (Oyun)
+        self.btn_oyun_kalem = ctk.CTkButton(self.oyun_arac_bari, text="✏️", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                            border_width=0, command=lambda: self.oyun_arac_degistir("Kalem ✏️"))
+        self.btn_oyun_kalem.pack(side="top", padx=6, pady=4)
+        self.btn_oyun_kalem.rol = "aktif_sekme"
+        
+        # Silgi Butonu (Oyun)
+        self.btn_oyun_silgi = ctk.CTkButton(self.oyun_arac_bari, text="🧼", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                            border_width=0, command=lambda: self.oyun_arac_degistir("Silgi 🧼"))
+        self.btn_oyun_silgi.pack(side="top", padx=6, pady=4)
+        self.btn_oyun_silgi.rol = "pasif_sekme"
+
+        # Ayırıcı Hat
+        Spacer_oyun = ctk.CTkFrame(self.oyun_arac_bari, height=2, width=30, fg_color="#44475a")
+        Spacer_oyun.rol = "border"
+        Spacer_oyun.pack(side="top", pady=6)
+
+        # Geri Al Butonu (Oyun)
+        self.btn_oyun_undo = ctk.CTkButton(self.oyun_arac_bari, text="↩️", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                           fg_color="transparent", border_width=0, command=self.oyun_geri_al)
+        self.btn_oyun_undo.pack(side="top", padx=6, pady=4)
+        self.btn_oyun_undo.rol = "pasif_sekme"
+
+        # İleri Al Butonu (Oyun)
+        self.btn_oyun_redo = ctk.CTkButton(self.oyun_arac_bari, text="↪️", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                           fg_color="transparent", border_width=0, command=self.oyun_ileri_al)
+        self.btn_oyun_redo.pack(side="top", padx=6, pady=4)
+        self.btn_oyun_redo.rol = "pasif_sekme"
+
+        # Temizle Butonu (Oyun)
+        self.btn_oyun_temizle = ctk.CTkButton(self.oyun_arac_bari, text="🧹", font=("Segoe UI", 16, "bold"), width=42, height=42,
+                                              border_width=0, command=self.oyun_tuvali_temizle)
+        self.btn_oyun_temizle.pack(side="top", padx=6, pady=4)
+        self.btn_oyun_temizle.rol = "temizle"
+
+        # ToolTip'leri Ekle
+        ToolTip(self.btn_oyun_kalem, "✏️ Kalem Modu")
+        ToolTip(self.btn_oyun_silgi, "🧼 Silgi Modu")
+        ToolTip(self.btn_oyun_undo, "↩️ Geri Al (Ctrl+Z)")
+        ToolTip(self.btn_oyun_redo, "↪️ İleri Al (Ctrl+Y)")
+        ToolTip(self.btn_oyun_temizle, "🧹 Tuvali Temizle")
+
+        # 2. Çizim tuvali çerçevesi (Oyun)
+        self.oyun_cerceve = ctk.CTkFrame(self.oyun_orta_layout_frame, corner_radius=10, border_width=2)
         self.oyun_cerceve.rol = "cerceve"
-        self.oyun_cerceve.pack_propagate(False) # Sıkışmayı engellemek için propagation kapalı!
-        self.oyun_cerceve.pack(side="top", pady=5)
+        self.oyun_cerceve.pack_propagate(False)
+        self.oyun_cerceve.pack(side="left")
 
         self.oyun_tuval = tk.Canvas(self.oyun_cerceve, bg="white", highlightthickness=0)
         self.oyun_tuval.pack(padx=2, pady=2, fill="both", expand=True)
@@ -626,17 +797,9 @@ class CizimTahminArayuzu:
         self.oyun_tuval.bind("<Leave>",           lambda e: self.oyun_tuval.delete("silgi_imleci"))
         self.oyun_tuval.bind("<Configure>",       self.oyun_tuval_boyutlandirildi)
 
-        # Kontrol Paneli (Oyun)
+        # Kontrol Paneli (Oyun - Sadece Kalınlık Slider'ı)
         self.oyun_kontrol_frame = ctk.CTkFrame(self.oyun_sol_panel_icerik, corner_radius=10)
         self.oyun_kontrol_frame.pack(side="top", pady=(5, 5))
-
-        lbl_tool = ctk.CTkLabel(self.oyun_kontrol_frame, text="Çizim Aracı:", font=("Segoe UI", 12, "bold"))
-        lbl_tool.rol = "yazi_ana"
-        lbl_tool.pack(anchor="w", padx=15, pady=(8, 4))
-        
-        self.oyun_arac_secici = ctk.CTkSegmentedButton(self.oyun_kontrol_frame, values=["Kalem ✏️", "Silgi 🧼"], command=self.oyun_arac_degistir)
-        self.oyun_arac_secici.set("Kalem ✏️")
-        self.oyun_arac_secici.pack(fill="x", padx=15, pady=(0, 10))
 
         slider_etiket = ctk.CTkFrame(self.oyun_kontrol_frame, fg_color="transparent")
         slider_etiket.pack(fill="x", padx=15, pady=(5, 2))
@@ -659,7 +822,19 @@ class CizimTahminArayuzu:
 
         lbl_title = ctk.CTkLabel(self.oyun_sag_panel, text="Mücadele Modu", font=("Segoe UI", 18, "bold"))
         lbl_title.rol = "yazi_yardimci"
-        lbl_title.pack(pady=(15, 5))
+        lbl_title.pack(pady=(15, 2))
+
+        # Skor ve Kombo Göstergesi
+        self.skor_frame = ctk.CTkFrame(self.oyun_sag_panel, fg_color="transparent")
+        self.skor_frame.pack(fill="x", padx=20, pady=(2, 5))
+        
+        self.lbl_skor = ctk.CTkLabel(self.skor_frame, text="Skor: 0", font=("Segoe UI", 13, "bold"))
+        self.lbl_skor.rol = "yesil"
+        self.lbl_skor.pack(side="left")
+        
+        self.lbl_kombo = ctk.CTkLabel(self.skor_frame, text="Kombo: x0", font=("Segoe UI", 13, "bold"))
+        self.lbl_kombo.rol = "turuncu"
+        self.lbl_kombo.pack(side="right")
 
         # Kelime Kutusu
         self.hedef_kelime_kutu = ctk.CTkFrame(self.oyun_sag_panel, corner_radius=12)
@@ -722,12 +897,7 @@ class CizimTahminArayuzu:
 
         self.btn_oyun_yeni = ctk.CTkButton(game_btn_grubu, text="Yeni Kelimeye Geç ➡️", font=("Segoe UI", 12, "bold"), height=40,
                                             command=self.yeni_oyun_baslat)
-        self.btn_oyun_yeni.pack(side="left", fill="x", expand=True, padx=(0, 6))
-
-        self.btn_oyun_temizle = ctk.CTkButton(game_btn_grubu, text="Temizle", font=("Segoe UI", 12, "bold"), height=40,
-                                               command=self.oyun_tuvali_temizle)
-        self.btn_oyun_temizle.rol = "temizle"
-        self.btn_oyun_temizle.pack(side="right", fill="x", expand=True, padx=(6, 0))
+        self.btn_oyun_yeni.pack(fill="x", expand=True)
 
         # 2. Mücadele giriş ekranı (Ekranı tam dolduracak esnek 50/50 panel)
         self.oyun_giris_frame = ctk.CTkFrame(self.oyun_frame, fg_color="transparent")
@@ -758,15 +928,46 @@ class CizimTahminArayuzu:
         lbl_rules_title.pack(anchor="w", padx=25, pady=(20, 10))
         
         rules_text = (
-            "• Yapay zeka çizmeniz için listeden rastgele bir nesne seçecektir.\n\n"
-            "• Bu kelimeyi tuval üzerine çizmek için tam 20 saniyeniz olacak.\n\n"
-            "• Siz çizdikçe yapay zeka gerçek zamanlı tahminler yürütecektir.\n\n"
-            "• Süre bitmeden önce doğru tahmin edilirse mücadeleyi kazanırsınız!\n\n"
-            "• Sol menüden dilediğiniz zaman diğer ekranlara geçiş yapabilirsiniz."
+            "• Yapay zeka listeden zorluğa göre rastgele bir nesne seçecektir.\n"
+            "• Çizim yapmak için kalan süreniz zorluk seviyesine bağlıdır.\n"
+            "• Çiziminiz yapay zeka tarafından süre bitmeden önce doğru\n"
+            "  tahmin edilirse turu kazanıp puan toplarsınız.\n"
+            "• Üst üste kazandıkça puanınızı artıran Kombo Çarpanı devreye girer!"
         )
-        lbl_rules = ctk.CTkLabel(rules_frame, text=rules_text, font=("Segoe UI", 12), justify="left", anchor="nw")
+        lbl_rules = ctk.CTkLabel(rules_frame, text=rules_text, font=("Segoe UI", 11.5), justify="left", anchor="nw")
         lbl_rules.rol = "yazi_ana"
-        lbl_rules.pack(fill="both", expand=True, padx=25, pady=(5, 20))
+        lbl_rules.pack(fill="x", padx=25, pady=(5, 5))
+
+        # Zorluk Seçimi
+        lbl_diff_title = ctk.CTkLabel(rules_frame, text="Zorluk Derecesi Seçin:", font=("Segoe UI", 12, "bold"))
+        lbl_diff_title.rol = "yazi_yardimci"
+        lbl_diff_title.pack(anchor="w", padx=25, pady=(5, 2))
+
+        self.seg_zorluk = ctk.CTkSegmentedButton(rules_frame, values=["Kolay", "Orta", "Zor"],
+                                                command=self.zorluk_secildi)
+        self.seg_zorluk.set(self.aktif_zorluk)
+        self.seg_zorluk.pack(fill="x", padx=25, pady=(2, 10))
+
+        # Rekorlar Tablosu
+        lbl_hs_title = ctk.CTkLabel(rules_frame, text="🏆 En Yüksek Skorlarınız (Rekorlar):", font=("Segoe UI", 12, "bold"))
+        lbl_hs_title.rol = "yazi_yardimci"
+        lbl_hs_title.pack(anchor="w", padx=25, pady=(10, 2))
+
+        self.hs_frame = ctk.CTkFrame(rules_frame, corner_radius=8)
+        self.hs_frame.rol = "ic"
+        self.hs_frame.pack(fill="x", padx=25, pady=(2, 15), ipady=4)
+
+        self.lbl_record_kolay = ctk.CTkLabel(self.hs_frame, text=f"🟢 Kolay: {self.rekorlar.get('Kolay', 0)} P", font=("Segoe UI", 10, "bold"))
+        self.lbl_record_kolay.rol = "yazi_ana"
+        self.lbl_record_kolay.pack(side="left", expand=True)
+
+        self.lbl_record_orta = ctk.CTkLabel(self.hs_frame, text=f"🟡 Orta: {self.rekorlar.get('Orta', 0)} P", font=("Segoe UI", 10, "bold"))
+        self.lbl_record_orta.rol = "yazi_ana"
+        self.lbl_record_orta.pack(side="left", expand=True)
+
+        self.lbl_record_zor = ctk.CTkLabel(self.hs_frame, text=f"🔴 Zor: {self.rekorlar.get('Zor', 0)} P", font=("Segoe UI", 10, "bold"))
+        self.lbl_record_zor.rol = "yazi_ana"
+        self.lbl_record_zor.pack(side="left", expand=True)
         
         # Sağ taraf: Kelime listesi kartı
         word_list_frame = ctk.CTkFrame(middle_frame, corner_radius=15, border_width=1)
@@ -875,6 +1076,8 @@ class CizimTahminArayuzu:
                             child.configure(fg_color=tema["alan_bg"])
                         elif child.rol == "cerceve":
                             child.configure(fg_color=tema["surface0"])
+                        elif child.rol == "border":
+                            child.configure(fg_color=tema["border_renk"])
                     else:
                         child.configure(fg_color=tema["kutu_bg"])
                 
@@ -937,6 +1140,33 @@ class CizimTahminArayuzu:
                 
             self._widget_renklendir(child, tema)
 
+    def sidebar_toggle(self):
+        self.sidebar_acik = not getattr(self, "sidebar_acik", True)
+        if self.sidebar_acik:
+            self.sidebar.configure(width=200)
+            self.logo_lbl.configure(text="🎨 Çizim AI", font=("Segoe UI", 22, "bold"))
+            self.btn_sidebar_toggle.configure(text="◀ Menüyü Kapat")
+            
+            self.sidebar_butonlar["tuval"].configure(text="✏️ Serbest Çizim", anchor="w")
+            self.sidebar_butonlar["oyun"].configure(text="🎮 Mücadele Oyunu", anchor="w")
+            self.sidebar_butonlar["temalar"].configure(text="🎨 Tema Seçimi", anchor="w")
+            
+            self.btn_sidebar_toggle.pack_configure(padx=15)
+            for btn in self.sidebar_butonlar.values():
+                btn.pack_configure(padx=15)
+        else:
+            self.sidebar.configure(width=60)
+            self.logo_lbl.configure(text="🎨", font=("Segoe UI", 24, "bold"))
+            self.btn_sidebar_toggle.configure(text="☰")
+            
+            self.sidebar_butonlar["tuval"].configure(text="✏️", anchor="center")
+            self.sidebar_butonlar["oyun"].configure(text="🎮", anchor="center")
+            self.sidebar_butonlar["temalar"].configure(text="🎨", anchor="center")
+            
+            self.btn_sidebar_toggle.pack_configure(padx=5)
+            for btn in self.sidebar_butonlar.values():
+                btn.pack_configure(padx=5)
+
     def sayfa_sec(self, sayfa_adi):
         self.aktif_sekme = sayfa_adi
         
@@ -959,7 +1189,7 @@ class CizimTahminArayuzu:
                 
         if sayfa_adi == "tuval":
             self.ekran_degistir("cizim")
-            self.tuval.configure(cursor="dot" if self.serbest_silgi_modu else "pencil")
+            self.arac_degistir("Silgi 🧼" if self.serbest_silgi_modu else "Kalem ✏️")
             self.pencere.after(50, self.tuval_yeniden_ciz)
         elif sayfa_adi == "oyun":
             self.ekran_degistir("oyun")
@@ -984,15 +1214,34 @@ class CizimTahminArayuzu:
             self.serbest_secilen_renk = "black"
             self.tuval.configure(cursor="pencil")
             self.slider_title.configure(text="Çizgi Kalınlığı:")
+            self.slider.configure(from_=5, to=40, number_of_steps=35)
+            self.slider.set(self.serbest_kalem_kalinligi)
+            self.serbest_firca_kalinligi = self.serbest_kalem_kalinligi
+            self.slider_deger.configure(text=f"{self.serbest_firca_kalinligi} px")
+            self.btn_kalem.rol = "aktif_sekme"
+            self.btn_silgi.rol = "pasif_sekme"
         else:
             self.serbest_silgi_modu = True
             self.serbest_secilen_renk = "white"
-            self.tuval.configure(cursor="dot")
+            self.tuval.configure(cursor="none")
             self.slider_title.configure(text="Silgi Kalınlığı:")
+            self.slider.configure(from_=5, to=80, number_of_steps=75)
+            self.slider.set(self.serbest_silgi_kalinligi)
+            self.serbest_firca_kalinligi = self.serbest_silgi_kalinligi
+            self.slider_deger.configure(text=f"{self.serbest_firca_kalinligi} px")
+            self.btn_silgi.rol = "aktif_sekme"
+            self.btn_kalem.rol = "pasif_sekme"
+        self._widget_renklendir(self.arac_bari, self.aktif_tema)
         self.imlec_guncelle()
 
     def firca_kalinligi_degisti(self, value):
-        self.serbest_firca_kalinligi = int(value)
+        val = int(value)
+        if self.serbest_silgi_modu:
+            self.serbest_silgi_kalinligi = val
+            self.serbest_firca_kalinligi = val
+        else:
+            self.serbest_kalem_kalinligi = val
+            self.serbest_firca_kalinligi = val
         self.slider_deger.configure(text=f"{self.serbest_firca_kalinligi} px")
         self.imlec_guncelle()
 
@@ -1007,43 +1256,61 @@ class CizimTahminArayuzu:
         # CustomTkinter'da CTkFrame olayları iç canvas üzerinden tetiklenir
         if event.widget != self.sol_panel._canvas:
             return
-        w = event.width
-        h = event.height
+            
+        parent_w = self.cizim_frame.winfo_width()
+        parent_h = self.cizim_frame.winfo_height()
         
+        if parent_w < 100 or parent_h < 100:
+            return
+            
         baslik_h = 30
-        kontrol_h = 130 # 160'tan 130'a düşürüldü, tuvale daha fazla dikey alan kalıyor
-        bosluk = 12 # 15'ten 12'ye düşürüldü
+        slider_h = 45
+        bosluk = 12
+        toolbar_w = 54
         
-        mevcut_h = h - baslik_h - kontrol_h - (bosluk * 3)
-        mevcut_w = w - (bosluk * 2)
+        # Column 0 width is parent_w * 12 / 22
+        col0_w = parent_w * 12 / 22
         
+        mevcut_h = parent_h - baslik_h - slider_h - (bosluk * 3) - 30
+        mevcut_w = col0_w - toolbar_w - (bosluk * 2) - 30
+        
+        # Keep the canvas a perfect square
         boyut = min(mevcut_w, mevcut_h)
         boyut = max(200, boyut)
         
-        self.sol_baslik.configure(width=boyut)
+        self.sol_baslik.configure(width=boyut + toolbar_w + 10)
         self.cerceve.configure(width=boyut, height=boyut)
-        self.kontrol_frame.configure(width=boyut)
+        self.kontrol_frame.configure(width=boyut + toolbar_w + 10)
 
     def oyun_sol_panel_boyutlandirildi(self, event):
         # Alt widget'lardan gelen configure tetiklenmelerini engelliyoruz
         if event.widget != self.oyun_sol_panel._canvas:
             return
-        w = event.width
-        h = event.height
+            
+        parent_w = self.oyun_aktif_frame.winfo_width()
+        parent_h = self.oyun_aktif_frame.winfo_height()
         
+        if parent_w < 100 or parent_h < 100:
+            return
+            
         baslik_h = 30
-        kontrol_h = 130 # 160'tan 130'a düşürüldü, tuvale daha fazla dikey alan kalıyor
-        bosluk = 12 # 15'ten 12'ye düşürüldü
+        slider_h = 45
+        bosluk = 12
+        toolbar_w = 54
         
-        mevcut_h = h - baslik_h - kontrol_h - (bosluk * 3)
-        mevcut_w = w - (bosluk * 2)
+        # Column 0 width is parent_w * 12 / 22
+        col0_w = parent_w * 12 / 22
         
+        mevcut_h = parent_h - baslik_h - slider_h - (bosluk * 3) - 30
+        mevcut_w = col0_w - toolbar_w - (bosluk * 2) - 30
+        
+        # Keep the canvas a perfect square
         boyut = min(mevcut_w, mevcut_h)
         boyut = max(200, boyut)
         
-        self.oyun_baslik.configure(width=boyut)
+        self.oyun_baslik.configure(width=boyut + toolbar_w + 10)
         self.oyun_cerceve.configure(width=boyut, height=boyut)
-        self.oyun_kontrol_frame.configure(width=boyut)
+        self.oyun_kontrol_frame.configure(width=boyut + toolbar_w + 10)
 
     def tuval_boyutlandirildi(self, event):
         if event.widget != self.tuval:
@@ -1109,7 +1376,7 @@ class CizimTahminArayuzu:
             outline_color = "#d20f39" if ctk.get_appearance_mode() == "light" else "#f38ba8"
             self.tuval.create_oval(self.son_fare_x - r, self.son_fare_y - r, 
                                    self.son_fare_x + r, self.son_fare_y + r,
-                                   outline=outline_color, width=1.5, dash=(3, 3), tags="silgi_imleci")
+                                   outline=outline_color, width=1.5, tags="silgi_imleci")
 
     def oyun_imlec_guncelle(self, event=None):
         self.oyun_tuval.delete("silgi_imleci")
@@ -1121,7 +1388,7 @@ class CizimTahminArayuzu:
             outline_color = "#d20f39" if ctk.get_appearance_mode() == "light" else "#f38ba8"
             self.oyun_tuval.create_oval(self.son_fare_x - r, self.son_fare_y - r, 
                                         self.son_fare_x + r, self.son_fare_y + r,
-                                        outline=outline_color, width=1.5, dash=(3, 3), tags="silgi_imleci")
+                                        outline=outline_color, width=1.5, tags="silgi_imleci")
 
     def cizime_basla(self, event):
         self.onceki_x, self.onceki_y = event.x, event.y
@@ -1195,6 +1462,7 @@ class CizimTahminArayuzu:
             self.pencere.after_cancel(self.tahmin_timer)
         self.canli_tahmin_yap()
         self.tuval_yeniden_ciz()
+        self.serbest_durum_kaydet()
 
     def oyun_cizimi_bitir(self, event):
         self.oyun_onceki_x = self.oyun_onceki_y = None
@@ -1202,6 +1470,7 @@ class CizimTahminArayuzu:
             self.pencere.after_cancel(self.tahmin_timer)
         self.oyun_tahmin_yap()
         self.oyun_tuval_yeniden_ciz()
+        self.oyun_durum_kaydet()
 
     def tuvali_temizle(self):
         self.tuval.delete("cizgi", "silgi_imleci")
@@ -1218,6 +1487,9 @@ class CizimTahminArayuzu:
             self.barlar[sinif].set(0.0)
             self.yuzde_etiketleri[sinif].configure(text="%0")
 
+        self.serbest_undo_stack.append(self.sanal_resim.copy())
+        self.serbest_redo_stack.clear()
+
     def oyun_tuvali_temizle(self):
         self.oyun_tuval.delete("cizgi", "silgi_imleci")
         self.oyun_sanal_resim = Image.new("RGB", (self.sanal_boyut, self.sanal_boyut), "white")
@@ -1228,6 +1500,80 @@ class CizimTahminArayuzu:
             row["bar"].set(0.0)
             row["val"].configure(text="%0")
 
+        self.oyun_undo_stack.append(self.oyun_sanal_resim.copy())
+        self.oyun_redo_stack.clear()
+
+    # ==========================================
+    # GERİ AL / İLERİ AL (UNDO / REDO) MANTISI
+    # ==========================================
+    def klavye_geri_al(self, event=None):
+        if self.aktif_sekme == "tuval":
+            self.serbest_geri_al()
+        elif self.aktif_sekme == "oyun":
+            self.oyun_geri_al()
+
+    def klavye_ileri_al(self, event=None):
+        if self.aktif_sekme == "tuval":
+            self.serbest_ileri_al()
+        elif self.aktif_sekme == "oyun":
+            self.oyun_ileri_al()
+
+    def serbest_durum_kaydet(self):
+        self.serbest_undo_stack.append(self.sanal_resim.copy())
+        self.serbest_redo_stack.clear()
+        if len(self.serbest_undo_stack) > 31:
+            self.serbest_undo_stack.pop(0)
+
+    def oyun_durum_kaydet(self):
+        self.oyun_undo_stack.append(self.oyun_sanal_resim.copy())
+        self.oyun_redo_stack.clear()
+        if len(self.oyun_undo_stack) > 31:
+            self.oyun_undo_stack.pop(0)
+
+    def serbest_geri_al(self):
+        if len(self.serbest_undo_stack) > 1:
+            son_durum = self.serbest_undo_stack.pop()
+            self.serbest_redo_stack.append(son_durum)
+            
+            self.sanal_resim = self.serbest_undo_stack[-1].copy()
+            self.cizici = ImageDraw.Draw(self.sanal_resim)
+            
+            self.tuval_yeniden_ciz()
+            self.canli_tahmin_yap()
+
+    def serbest_ileri_al(self):
+        if len(self.serbest_redo_stack) > 0:
+            durum = self.serbest_redo_stack.pop()
+            self.serbest_undo_stack.append(durum)
+            
+            self.sanal_resim = durum.copy()
+            self.cizici = ImageDraw.Draw(self.sanal_resim)
+            
+            self.tuval_yeniden_ciz()
+            self.canli_tahmin_yap()
+
+    def oyun_geri_al(self):
+        if len(self.oyun_undo_stack) > 1:
+            son_durum = self.oyun_undo_stack.pop()
+            self.oyun_redo_stack.append(son_durum)
+            
+            self.oyun_sanal_resim = self.oyun_undo_stack[-1].copy()
+            self.oyun_cizici = ImageDraw.Draw(self.oyun_sanal_resim)
+            
+            self.oyun_tuval_yeniden_ciz()
+            self.oyun_tahmin_yap()
+
+    def oyun_ileri_al(self):
+        if len(self.oyun_redo_stack) > 0:
+            durum = self.oyun_redo_stack.pop()
+            self.oyun_undo_stack.append(durum)
+            
+            self.oyun_sanal_resim = durum.copy()
+            self.oyun_cizici = ImageDraw.Draw(self.oyun_sanal_resim)
+            
+            self.oyun_tuval_yeniden_ciz()
+            self.oyun_tahmin_yap()
+
     def tahmin_butonuna_basildi(self):
         gri_matris = np.array(self.sanal_resim.convert("L"))
         if np.min(gri_matris) == 255:
@@ -1235,7 +1581,7 @@ class CizimTahminArayuzu:
             self.bilgi_etiketi.configure(text="Uyarı: Boş tuval tahmin edilemez!", text_color=self.aktif_tema["kirmizi"])
             return
 
-        tahmin, guven, matris, olasiliklar = self.ai.tahmin_et(self.sanal_resim)
+        tahmin, guven, matris, olasiliklar, act_map = self.ai.tahmin_et(self.sanal_resim)
 
         gorsel_copy = self.sanal_resim.copy()
         self.tk_buyuk_gorsel = ctk.CTkImage(light_image=gorsel_copy, dark_image=gorsel_copy, size=(280, 280))
@@ -1272,12 +1618,24 @@ class CizimTahminArayuzu:
                 self.yuzde_etiketleri[sinif].configure(text="%0")
             return
 
-        tahmin, guven, matris, olasiliklar = self.ai.tahmin_et(self.sanal_resim)
+        tahmin, guven, matris, olasiliklar, act_map = self.ai.tahmin_et(self.sanal_resim)
 
-        gorsel_matris = (matris * 255).astype(np.uint8)
-        gorsel = Image.fromarray(gorsel_matris)
-        
-        self.tk_gorsel = ctk.CTkImage(light_image=gorsel, dark_image=gorsel, size=(self.ONIZLEME_PX, self.ONIZLEME_PX))
+        # Termal Isı Haritası (Heatmap) Oluşturma
+        lut = []
+        for i in range(256):
+            v = i / 255.0
+            r = int(min(1.0, v * 1.5) * 255)
+            g = int(max(0.0, min(1.0, (v - 0.3) * 1.5)) * 255)
+            b = int(max(0.0, min(1.0, (v - 0.6) * 2.5)) * 255)
+            lut.extend([r, g, b])
+            
+        act_img = Image.fromarray((act_map * 255).astype(np.uint8), mode="L")
+        act_img = act_img.resize((self.ONIZLEME_PX, self.ONIZLEME_PX), Image.Resampling.BILINEAR)
+        act_img = act_img.convert("P")
+        act_img.putpalette(lut)
+        act_img = act_img.convert("RGB")
+
+        self.tk_gorsel = ctk.CTkImage(light_image=act_img, dark_image=act_img, size=(self.ONIZLEME_PX, self.ONIZLEME_PX))
         self.veri_ekrani.configure(image=self.tk_gorsel)
 
         renk = (self.aktif_tema["yesil"] if guven >= 75 else
@@ -1287,7 +1645,7 @@ class CizimTahminArayuzu:
         self.tahmin_etiketi.configure(text=tahmin, text_color=renk)
         self.guven_etiketi.configure(text=f"%{guven} güven", text_color=renk)
         self.bilgi_etiketi.configure(
-            text=f"Boyut: 28x28 | Min: {matris.min():.1f} Max: {matris.max():.1f}",
+            text=f"CNN Aktivasyon Haritası | Güven: %{guven}",
             text_color=self.aktif_tema["yazi_aciklama"])
 
         for i, sinif_adi in enumerate(self.ai.siniflar):
@@ -1301,15 +1659,34 @@ class CizimTahminArayuzu:
             self.oyun_secilen_renk = "black"
             self.oyun_tuval.configure(cursor="pencil")
             self.oyun_slider_title.configure(text="Çizgi Kalınlığı:")
+            self.oyun_slider.configure(from_=5, to=40, number_of_steps=35)
+            self.oyun_slider.set(self.oyun_kalem_kalinligi)
+            self.oyun_firca_kalinligi = self.oyun_kalem_kalinligi
+            self.oyun_slider_deger.configure(text=f"{self.oyun_firca_kalinligi} px")
+            self.btn_oyun_kalem.rol = "aktif_sekme"
+            self.btn_oyun_silgi.rol = "pasif_sekme"
         else:
             self.oyun_silgi_modu = True
             self.oyun_secilen_renk = "white"
-            self.oyun_tuval.configure(cursor="dot")
+            self.oyun_tuval.configure(cursor="none")
             self.oyun_slider_title.configure(text="Silgi Kalınlığı:")
+            self.oyun_slider.configure(from_=5, to=80, number_of_steps=75)
+            self.oyun_slider.set(self.oyun_silgi_kalinligi)
+            self.oyun_firca_kalinligi = self.oyun_silgi_kalinligi
+            self.oyun_slider_deger.configure(text=f"{self.oyun_firca_kalinligi} px")
+            self.btn_oyun_silgi.rol = "aktif_sekme"
+            self.btn_oyun_kalem.rol = "pasif_sekme"
+        self._widget_renklendir(self.oyun_arac_bari, self.aktif_tema)
         self.oyun_imlec_guncelle()
 
     def oyun_firca_kalinligi_degisti(self, value):
-        self.oyun_firca_kalinligi = int(value)
+        val = int(value)
+        if self.oyun_silgi_modu:
+            self.oyun_silgi_kalinligi = val
+            self.oyun_firca_kalinligi = val
+        else:
+            self.oyun_kalem_kalinligi = val
+            self.oyun_firca_kalinligi = val
         self.oyun_slider_deger.configure(text=f"{self.oyun_firca_kalinligi} px")
         self.oyun_imlec_guncelle()
 
@@ -1319,8 +1696,19 @@ class CizimTahminArayuzu:
             self.oyun_timer_id = None
             
         import random
-        self.hedef_kelime = random.choice(self.ai.siniflar)
-        self.oyun_sure = 20
+        # Zorluk seviyesine göre kelime havuzunu filtrele
+        if self.aktif_zorluk == "Kolay":
+            pool = ["Ev", "Elma", "Güneş", "Ağaç", "Çiçek"]
+            self.oyun_sure_limiti = 25
+        elif self.aktif_zorluk == "Orta":
+            pool = ["Kedi", "Araba", "Kuş", "Balık", "Ev", "Elma", "Güneş", "Ağaç", "Çiçek"]
+            self.oyun_sure_limiti = 15
+        else: # Zor
+            pool = ["Bisiklet", "Kedi", "Araba", "Kuş", "Balık"]
+            self.oyun_sure_limiti = 10
+            
+        self.hedef_kelime = random.choice(pool)
+        self.oyun_sure = self.oyun_sure_limiti
         self.oyun_aktif = True
         
         self.oyun_tuvali_temizle()
@@ -1329,8 +1717,11 @@ class CizimTahminArayuzu:
         self.oyun_durum_label.configure(text="Çiziminizi yapın...", text_color=self.aktif_tema["yazi_ana"])
         self.oyun_sure_guncelle()
         
+        self.lbl_skor.configure(text=f"Skor: {self.oyun_skor}")
+        self.lbl_kombo.configure(text=f"Kombo: x{self.oyun_kombo}")
+        
         # Reset tool inside game screen back to current game state tab choices
-        self.oyun_arac_secici.set("Silgi 🧼" if self.oyun_silgi_modu else "Kalem ✏️")
+        self.oyun_arac_degistir("Silgi 🧼" if self.oyun_silgi_modu else "Kalem ✏️")
         
         self.oyun_dongusu()
 
@@ -1345,7 +1736,7 @@ class CizimTahminArayuzu:
 
     def oyun_sure_guncelle(self):
         self.oyun_sure_label.configure(text=f"Kalan Süre: {self.oyun_sure} sn")
-        progress = self.oyun_sure / 20.0
+        progress = self.oyun_sure / float(self.oyun_sure_limiti)
         self.oyun_sure_bar.set(progress)
         
         if progress > 0.5:
@@ -1367,7 +1758,7 @@ class CizimTahminArayuzu:
                 row["val"].configure(text="%0")
             return
             
-        tahmin, guven, matris, olasiliklar = self.ai.tahmin_et(self.oyun_sanal_resim)
+        tahmin, guven, matris, olasiliklar, act_map = self.ai.tahmin_et(self.oyun_sanal_resim)
         
         # En yüksek olasılıkları sırala
         sorted_indices = np.argsort(olasiliklar)[::-1]
@@ -1392,10 +1783,215 @@ class CizimTahminArayuzu:
             self.pencere.after_cancel(self.oyun_timer_id)
             self.oyun_timer_id = None
             
+        # Puanlama ve Kombo çarpanı hesaplama
+        self.oyun_kombo += 1
+        sure_yuzde = self.oyun_sure / float(self.oyun_sure_limiti)
+        temel_puan = int(sure_yuzde * 100)
+        if temel_puan < 15:
+            temel_puan = 15 # En az 15 taban puan
+            
+        # Zorluk çarpanı
+        zorluk_katsayisi = 1.0 if self.aktif_zorluk == "Kolay" else 1.5 if self.aktif_zorluk == "Orta" else 2.5
+        kazanilan_puan = int(temel_puan * self.oyun_kombo * zorluk_katsayisi)
+        
+        self.oyun_skor += kazanilan_puan
+        self.lbl_skor.configure(text=f"Skor: {self.oyun_skor}")
+        self.lbl_kombo.configure(text=f"Kombo: x{self.oyun_kombo}")
+        
+        # Rekor kaydet
+        self.high_score_kaydet(self.aktif_zorluk, self.oyun_skor)
+        
         self.oyun_kelime_label.configure(text_color=self.aktif_tema["yesil"])
-        self.oyun_durum_label.configure(text=f"Tebrikler! %{guven} güvenle doğru tahmin edildi! 🎉", text_color=self.aktif_tema["yesil"])
+        self.oyun_durum_label.configure(
+            text=f"Tebrikler! +{kazanilan_puan} Puan (Kombo x{self.oyun_kombo}) 🎉", 
+            text_color=self.aktif_tema["yesil"]
+        )
+        
+        # Konfeti patlat
+        self.konfeti_animasyonu_baslat()
 
     def oyun_kaybettin(self):
         self.oyun_aktif = False
+        self.oyun_kombo = 0
+        self.lbl_kombo.configure(text="Kombo: x0")
+        
         self.oyun_kelime_label.configure(text_color=self.aktif_tema["kirmizi"])
-        self.oyun_durum_label.configure(text="Zaman doldu! Tahmin edilemedi. 😢", text_color=self.aktif_tema["kirmizi"])
+        self.oyun_durum_label.configure(text="Zaman doldu! Kombo Sıfırlandı. 😢", text_color=self.aktif_tema["kirmizi"])
+
+    # ==========================================
+    # 🏆 REKORLAR, ZORLUK, KONFETİ VE GÖRSEL DÖNGÜLER
+    # ==========================================
+    def high_scores_yukle(self):
+        import json
+        import os
+        self.high_score_dosyası = "high_scores.json"
+        try:
+            if os.path.exists(self.high_score_dosyası):
+                with open(self.high_score_dosyası, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception:
+            pass
+        return {"Kolay": 0, "Orta": 0, "Zor": 0}
+
+    def high_score_kaydet(self, zorluk, skor):
+        import json
+        scores = self.high_scores_yukle()
+        if skor > scores.get(zorluk, 0):
+            scores[zorluk] = skor
+            self.rekorlar = scores
+            try:
+                with open(self.high_score_dosyası, "w", encoding="utf-8") as f:
+                    json.dump(scores, f, indent=4)
+                # Lobideki rekor yazılarını anlık güncelle
+                if hasattr(self, "lbl_record_kolay") and self.lbl_record_kolay.winfo_exists():
+                    self.lbl_record_kolay.configure(text=f"🟢 Kolay: {scores.get('Kolay', 0)} P")
+                    self.lbl_record_orta.configure(text=f"🟡 Orta: {scores.get('Orta', 0)} P")
+                    self.lbl_record_zor.configure(text=f"🔴 Zor: {scores.get('Zor', 0)} P")
+            except Exception:
+                pass
+
+    def zorluk_secildi(self, value):
+        self.aktif_zorluk = value
+        if value == "Kolay":
+            self.oyun_sure_limiti = 25
+        elif value == "Orta":
+            self.oyun_sure_limiti = 15
+        else: # Zor
+            self.oyun_sure_limiti = 10
+
+    def konfeti_animasyonu_baslat(self):
+        if hasattr(self, "konfeti_timer_id") and self.konfeti_timer_id:
+            self.pencere.after_cancel(self.konfeti_timer_id)
+            self.konfeti_timer_id = None
+            
+        self.oyun_tuval.delete("konfeti")
+        self.konfeti_partikulleri = []
+        self.konfeti_sayac = 0
+        self.konfeti_aktif = True
+        
+        w = max(300, self.oyun_tuval.winfo_width())
+        colors = ["#ff007f", "#00ffff", "#39ff14", "#ffff00", "#ffaa00", "#bd93f9", "#ff5555"]
+        
+        for _ in range(70):
+            self.konfeti_partikulleri.append({
+                "x": np.random.randint(0, w),
+                "y": np.random.randint(-150, 0),
+                "size_w": np.random.randint(5, 12),
+                "size_h": np.random.randint(5, 12),
+                "color": np.random.choice(colors),
+                "speed_y": np.random.uniform(3.0, 7.0),
+                "speed_x": np.random.uniform(-2.0, 2.0),
+                "angle": np.random.uniform(0, 360),
+                "spin": np.random.uniform(-8.0, 8.0)
+            })
+            
+        self.konfeti_animasyonu_dongusu()
+
+    def konfeti_animasyonu_dongusu(self):
+        if not hasattr(self, "konfeti_aktif") or not self.konfeti_aktif:
+            return
+            
+        self.oyun_tuval.delete("konfeti")
+        h = self.oyun_tuval.winfo_height()
+        
+        still_alive = False
+        for p in self.konfeti_partikulleri:
+            p["y"] += p["speed_y"]
+            p["x"] += p["speed_x"]
+            p["angle"] += p["spin"]
+            
+            if p["y"] < h + 20:
+                still_alive = True
+                rad = np.radians(p["angle"])
+                dw = p["size_w"] * np.cos(rad)
+                dh = p["size_h"] * np.sin(rad)
+                
+                # Çift yönlü dönen poligon (kağıt) efekti
+                self.oyun_tuval.create_polygon(
+                    p["x"] - dw, p["y"] - dh,
+                    p["x"] + dw, p["y"] - dh,
+                    p["x"] + dw, p["y"] + dh,
+                    p["x"] - dw, p["y"] + dh,
+                    fill=p["color"], tags="konfeti"
+                )
+                
+        self.konfeti_sayac += 1
+        if self.konfeti_sayac < 60 and still_alive and self.aktif_sekme == "oyun":
+            self.konfeti_timer_id = self.pencere.after(30, self.konfeti_animasyonu_dongusu)
+        else:
+            self.konfeti_aktif = False
+            self.oyun_tuval.delete("konfeti")
+
+    def glow_efekti_guncelle(self):
+        if not hasattr(self, "glow_sayac"):
+            self.glow_sayac = 0.0
+        self.glow_sayac += 0.15
+        
+        # Seçili temanın mavi ve border renklerini alıp aralarında yumuşakça pulse yaptırıyoruz
+        c1 = self.aktif_tema["border_renk"]
+        c2 = self.aktif_tema["mavi"]
+        
+        try:
+            r1, g1, b1 = int(c1[1:3], 16), int(c1[3:5], 16), int(c1[5:7], 16)
+            r2, g2, b2 = int(c2[1:3], 16), int(c2[3:5], 16), int(c2[5:7], 16)
+            
+            factor = (np.sin(self.glow_sayac) + 1.0) / 2.0 # 0.0 ile 1.0 arası sinüs
+            
+            r = int(r1 + (r2 - r1) * factor)
+            g = int(g1 + (g2 - g1) * factor)
+            b = int(b1 + (b2 - b1) * factor)
+            
+            color_hex = f"#{r:02x}{g:02x}{b:02x}"
+            
+            if hasattr(self, "cerceve") and self.cerceve.winfo_exists():
+                self.cerceve.configure(border_color=color_hex)
+            if hasattr(self, "oyun_cerceve") and self.oyun_cerceve.winfo_exists():
+                self.oyun_cerceve.configure(border_color=color_hex)
+        except Exception:
+            pass
+            
+        self.pencere.after(80, self.glow_efekti_guncelle)
+
+    def pulse_tahmin_guncelle(self):
+        if not hasattr(self, "pulse_sayac"):
+            self.pulse_sayac = 0.0
+        self.pulse_sayac += 0.25
+        
+        factor = (np.sin(self.pulse_sayac) + 1.0) / 2.0
+        
+        try:
+            # En yüksek olasılıklı sınıfın barını neon yeşil/mavi arası parlat
+            tahmin_sinif = self.tahmin_etiketi.cget("text")
+            if tahmin_sinif and tahmin_sinif != "—":
+                c_mavi = self.aktif_tema["mavi"]
+                c_yesil = self.aktif_tema["yesil"]
+                
+                r1, g1, b1 = int(c_mavi[1:3], 16), int(c_mavi[3:5], 16), int(c_mavi[5:7], 16)
+                r2, g2, b2 = int(c_yesil[1:3], 16), int(c_yesil[3:5], 16), int(c_yesil[5:7], 16)
+                
+                r = int(r1 + (r2 - r1) * factor)
+                g = int(g1 + (g2 - g1) * factor)
+                b = int(b1 + (b2 - b1) * factor)
+                color_hex = f"#{r:02x}{g:02x}{b:02x}"
+                
+                if tahmin_sinif in self.barlar:
+                    self.barlar[tahmin_sinif].configure(progress_color=color_hex)
+            
+            # Mücadele oyununda kazanıldığında kelime etiketini pulse et
+            if hasattr(self, "oyun_aktif") and not self.oyun_aktif and self.oyun_kelime_label.cget("text_color") == self.aktif_tema["yesil"]:
+                c_yesil = self.aktif_tema["yesil"]
+                c_yazi = self.aktif_tema["yazi_ana"]
+                r1, g1, b1 = int(c_yesil[1:3], 16), int(c_yesil[3:5], 16), int(c_yesil[5:7], 16)
+                r2, g2, b2 = int(c_yazi[1:3], 16), int(c_yazi[3:5], 16), int(c_yazi[5:7], 16)
+                
+                r = int(r1 + (r2 - r1) * factor)
+                g = int(g1 + (g2 - g1) * factor)
+                b = int(b1 + (b2 - b1) * factor)
+                color_hex = f"#{r:02x}{g:02x}{b:02x}"
+                
+                self.oyun_kelime_label.configure(text_color=color_hex)
+                self.oyun_durum_label.configure(text_color=color_hex)
+        except Exception:
+            pass
+            
+        self.pencere.after(100, self.pulse_tahmin_guncelle)
