@@ -441,10 +441,31 @@ class CizimTahminArayuzu:
         self.sol_panel_icerik = ctk.CTkFrame(self.sol_panel, fg_color="transparent")
         self.sol_panel_icerik.grid(row=0, column=0)
 
-        # Başlık ve tuval üst hizalama için anchor="center"
-        self.sol_baslik = ctk.CTkLabel(self.sol_panel_icerik, text="Çizim Alanı", font=("Segoe UI", 15, "bold"), anchor="center")
+        # Üst Yatay Seçenekler ve Başlık Barı (Tuval Üstü Yatay Kontrol Barı)
+        self.sol_ust_bar = ctk.CTkFrame(self.sol_panel_icerik, fg_color="transparent", height=35)
+        self.sol_ust_bar.pack(side="top", pady=(5, 10))
+        self.sol_ust_bar.pack_propagate(False)
+
+        # Sol taraf: Başlık
+        self.sol_baslik = ctk.CTkLabel(self.sol_ust_bar, text="Çizim Alanı", font=("Segoe UI", 15, "bold"), anchor="w")
         self.sol_baslik.rol = "yazi_ana"
-        self.sol_baslik.pack(side="top", pady=(5, 5))
+        self.sol_baslik.pack(side="left", padx=(5, 10))
+
+        # Sağ taraf: Slider ve Kontrolleri barındıran alt frame
+        self.kontrol_bar = ctk.CTkFrame(self.sol_ust_bar, fg_color="transparent")
+        self.kontrol_bar.pack(side="right", padx=(10, 5))
+
+        self.slider_title = ctk.CTkLabel(self.kontrol_bar, text="Çizgi Kalınlığı:", font=("Segoe UI", 12, "bold"))
+        self.slider_title.rol = "yazi_ana"
+        self.slider_title.pack(side="left", padx=(0, 5))
+
+        self.slider = ctk.CTkSlider(self.kontrol_bar, from_=5, to=40, number_of_steps=35, command=self.firca_kalinligi_degisti, width=120, height=16)
+        self.slider.set(14)
+        self.slider.pack(side="left", padx=(0, 5))
+
+        self.slider_deger = ctk.CTkLabel(self.kontrol_bar, text="14 px", font=("Segoe UI", 12))
+        self.slider_deger.rol = "yesil"
+        self.slider_deger.pack(side="left")
 
         # Orta Düzen (Dikey İkon Barı + Tuval Çerçevesi)
         self.orta_layout_frame = ctk.CTkFrame(self.sol_panel_icerik, fg_color="transparent")
@@ -515,25 +536,7 @@ class CizimTahminArayuzu:
         self.tuval.bind("<Leave>",           lambda e: self.tuval.delete("silgi_imleci"))
         self.tuval.bind("<Configure>",       self.tuval_boyutlandirildi)
 
-        # Kontrol Paneli (Sadece Kalınlık Slider'ı)
-        self.kontrol_frame = ctk.CTkFrame(self.sol_panel_icerik, corner_radius=10)
-        self.kontrol_frame.pack(side="top", pady=(5, 5))
-
-        # Slider Etiket Grubu
-        slider_etiket = ctk.CTkFrame(self.kontrol_frame, fg_color="transparent")
-        slider_etiket.pack(fill="x", padx=15, pady=(5, 2))
-        
-        self.slider_title = ctk.CTkLabel(slider_etiket, text="Çizgi Kalınlığı:", font=("Segoe UI", 12, "bold"))
-        self.slider_title.rol = "yazi_ana"
-        self.slider_title.pack(side="left")
-        
-        self.slider_deger = ctk.CTkLabel(slider_etiket, text="14 px", font=("Segoe UI", 12))
-        self.slider_deger.rol = "yesil"
-        self.slider_deger.pack(side="right")
-
-        self.slider = ctk.CTkSlider(self.kontrol_frame, from_=5, to=40, number_of_steps=35, command=self.firca_kalinligi_degisti)
-        self.slider.set(14)
-        self.slider.pack(fill="x", padx=15, pady=(0, 10))
+        # (Eski kontrol_frame kaldırıldı, üst bar ile birleştirildi)
 
         # Sağ Bölüm: Yapay Zeka Canlı Panel
         sag = ctk.CTkFrame(self.cizim_frame, fg_color="transparent")
@@ -725,9 +728,31 @@ class CizimTahminArayuzu:
         self.oyun_sol_panel_icerik = ctk.CTkFrame(self.oyun_sol_panel, fg_color="transparent")
         self.oyun_sol_panel_icerik.grid(row=0, column=0)
 
-        self.oyun_baslik = ctk.CTkLabel(self.oyun_sol_panel_icerik, text="Çizim Alanı (Mücadele)", font=("Segoe UI", 15, "bold"), anchor="center")
+        # Üst Yatay Seçenekler ve Başlık Barı (Mücadele)
+        self.oyun_ust_bar = ctk.CTkFrame(self.oyun_sol_panel_icerik, fg_color="transparent", height=35)
+        self.oyun_ust_bar.pack(side="top", pady=(5, 10))
+        self.oyun_ust_bar.pack_propagate(False)
+
+        # Sol taraf: Başlık
+        self.oyun_baslik = ctk.CTkLabel(self.oyun_ust_bar, text="Çizim Alanı (Mücadele)", font=("Segoe UI", 15, "bold"), anchor="w")
         self.oyun_baslik.rol = "yazi_ana"
-        self.oyun_baslik.pack(side="top", pady=(5, 5))
+        self.oyun_baslik.pack(side="left", padx=(5, 10))
+
+        # Sağ taraf: Slider ve Kontrolleri barındıran alt frame
+        self.oyun_kontrol_bar = ctk.CTkFrame(self.oyun_ust_bar, fg_color="transparent")
+        self.oyun_kontrol_bar.pack(side="right", padx=(10, 5))
+
+        self.oyun_slider_title = ctk.CTkLabel(self.oyun_kontrol_bar, text="Çizgi Kalınlığı:", font=("Segoe UI", 12, "bold"))
+        self.oyun_slider_title.rol = "yazi_ana"
+        self.oyun_slider_title.pack(side="left", padx=(0, 5))
+
+        self.oyun_slider = ctk.CTkSlider(self.oyun_kontrol_bar, from_=5, to=40, number_of_steps=35, command=self.oyun_firca_kalinligi_degisti, width=120, height=16)
+        self.oyun_slider.set(14)
+        self.oyun_slider.pack(side="left", padx=(0, 5))
+
+        self.oyun_slider_deger = ctk.CTkLabel(self.oyun_kontrol_bar, text="14 px", font=("Segoe UI", 12))
+        self.oyun_slider_deger.rol = "yesil"
+        self.oyun_slider_deger.pack(side="left")
 
         # Orta Düzen (Dikey İkon Barı + Tuval Çerçevesi)
         self.oyun_orta_layout_frame = ctk.CTkFrame(self.oyun_sol_panel_icerik, fg_color="transparent")
@@ -797,24 +822,7 @@ class CizimTahminArayuzu:
         self.oyun_tuval.bind("<Leave>",           lambda e: self.oyun_tuval.delete("silgi_imleci"))
         self.oyun_tuval.bind("<Configure>",       self.oyun_tuval_boyutlandirildi)
 
-        # Kontrol Paneli (Oyun - Sadece Kalınlık Slider'ı)
-        self.oyun_kontrol_frame = ctk.CTkFrame(self.oyun_sol_panel_icerik, corner_radius=10)
-        self.oyun_kontrol_frame.pack(side="top", pady=(5, 5))
-
-        slider_etiket = ctk.CTkFrame(self.oyun_kontrol_frame, fg_color="transparent")
-        slider_etiket.pack(fill="x", padx=15, pady=(5, 2))
-        
-        self.oyun_slider_title = ctk.CTkLabel(slider_etiket, text="Çizgi Kalınlığı:", font=("Segoe UI", 12, "bold"))
-        self.oyun_slider_title.rol = "yazi_ana"
-        self.oyun_slider_title.pack(side="left")
-        
-        self.oyun_slider_deger = ctk.CTkLabel(slider_etiket, text="14 px", font=("Segoe UI", 12))
-        self.oyun_slider_deger.rol = "yesil"
-        self.oyun_slider_deger.pack(side="right")
-
-        self.oyun_slider = ctk.CTkSlider(self.oyun_kontrol_frame, from_=5, to=40, number_of_steps=35, command=self.oyun_firca_kalinligi_degisti)
-        self.oyun_slider.set(14)
-        self.oyun_slider.pack(fill="x", padx=15, pady=(0, 10))
+        # (Eski oyun_kontrol_frame kaldırıldı, üst bar ile birleştirildi)
 
         # Sağ Oyun Paneli
         self.oyun_sag_panel = ctk.CTkFrame(self.oyun_aktif_frame, corner_radius=10, border_width=2)
@@ -1263,24 +1271,23 @@ class CizimTahminArayuzu:
         if parent_w < 100 or parent_h < 100:
             return
             
-        baslik_h = 30
-        slider_h = 45
+        baslik_h = 35
+        slider_h = 0
         bosluk = 12
         toolbar_w = 54
         
         # Column 0 width is parent_w * 12 / 22
         col0_w = parent_w * 12 / 22
         
-        mevcut_h = parent_h - baslik_h - slider_h - (bosluk * 3) - 30
+        mevcut_h = parent_h - baslik_h - (bosluk * 2) - 40
         mevcut_w = col0_w - toolbar_w - (bosluk * 2) - 30
         
         # Keep the canvas a perfect square
         boyut = min(mevcut_w, mevcut_h)
         boyut = max(200, boyut)
         
-        self.sol_baslik.configure(width=boyut + toolbar_w + 10)
+        self.sol_ust_bar.configure(width=boyut + toolbar_w + 10)
         self.cerceve.configure(width=boyut, height=boyut)
-        self.kontrol_frame.configure(width=boyut + toolbar_w + 10)
 
     def oyun_sol_panel_boyutlandirildi(self, event):
         # Alt widget'lardan gelen configure tetiklenmelerini engelliyoruz
@@ -1293,24 +1300,23 @@ class CizimTahminArayuzu:
         if parent_w < 100 or parent_h < 100:
             return
             
-        baslik_h = 30
-        slider_h = 45
+        baslik_h = 35
+        slider_h = 0
         bosluk = 12
         toolbar_w = 54
         
         # Column 0 width is parent_w * 12 / 22
         col0_w = parent_w * 12 / 22
         
-        mevcut_h = parent_h - baslik_h - slider_h - (bosluk * 3) - 30
+        mevcut_h = parent_h - baslik_h - (bosluk * 2) - 40
         mevcut_w = col0_w - toolbar_w - (bosluk * 2) - 30
         
         # Keep the canvas a perfect square
         boyut = min(mevcut_w, mevcut_h)
         boyut = max(200, boyut)
         
-        self.oyun_baslik.configure(width=boyut + toolbar_w + 10)
+        self.oyun_ust_bar.configure(width=boyut + toolbar_w + 10)
         self.oyun_cerceve.configure(width=boyut, height=boyut)
-        self.oyun_kontrol_frame.configure(width=boyut + toolbar_w + 10)
 
     def tuval_boyutlandirildi(self, event):
         if event.widget != self.tuval:
