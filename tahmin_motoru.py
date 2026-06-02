@@ -6,10 +6,20 @@ from PIL import Image
 
 class TahminMotoru:
     def __init__(self):
-        # prepare_dataset.py dosyasındaki tam sıralama (önemli!)
-        # 0 -> cat, 1 -> house, 2 -> car, 3 -> apple, 4 -> sun
-        # Kullanıcıya Türkçe göstermek için burayı Türkçe yapıyoruz ama sıra bozulmamalı.
-        self.siniflar = ["Kedi", "Ev", "Araba", "Elma", "Güneş"]
+        # prepare_dataset.py dosyasındaki tam sıralama önemli
+        # Kullanıcıya Türkçe göstermek için burayı Türkçe yapıyoruz ama sıra ASLA bozulmamalı.
+        self.siniflar = [
+            "Kedi",     # 0
+            "Ev",       # 1
+            "Araba",    # 2
+            "Elma",     # 3
+            "Güneş",    # 4
+            "Kuş",      # 5
+            "Ağaç",     # 6
+            "Bisiklet", # 7
+            "Balık",    # 8
+            "Çiçek"     # 9
+        ]
         
         model_yolu = "quickdraw_model.keras"
         
