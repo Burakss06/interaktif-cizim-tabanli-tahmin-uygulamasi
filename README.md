@@ -21,7 +21,12 @@ Proje, Google'ın **Quick Draw** veri setini kullanarak eğittiği bir **Evrişi
 ### Yazılım Gereksinimleri
 * **İşletim Sistemi:** Windows, macOS veya Linux
 * **Python Sürümü:** Python 3.10 veya üzeri (Python 3.13 ile test edilmiştir)
-* **Temel Kütüphaneler:** TensorFlow/Keras, NumPy, Pillow (PIL), CustomTkinter, Matplotlib
+* **Temel Kütüphaneler:**
+  * `customtkinter` (>=5.2.0): Modern, karanlık mod uyumlu kullanıcı arayüzü ve pencere yönetimi için.
+  * `tensorflow` (>=2.15.0): Eğitilmiş Evrişimli Sinir Ağı (CNN) modelinin yüklenmesi ve gerçek zamanlı tahmin motoru için.
+  * `numpy` (>=1.20.0): Çizim piksel verilerini sayısal matrislere dönüştürmek, normalizasyon yapmak ve model giriş formatını ayarlamak için.
+  * `Pillow` (>=9.0.0): Arayüzdeki çizimleri yakalamak, otomatik kırpmak, kare tuvale sığdırmak (padding) ve yeniden boyutlandırmak (resize) için.
+  * `matplotlib` (>=3.5.0): Eğitim veri setindeki örnek görselleri test amacıyla ekrana bastırmak için.
 
 ### Donanım Gereksinimleri
 * **İşlemci:** Intel Core i3 / AMD Ryzen 3 veya daha iyi işlemci
@@ -108,7 +113,7 @@ Ham veri setlerine Google Cloud Storage üzerinden erişebilirsiniz:
    
 3. Model eğitimi başlatın:
    ```bash
-   python train_model.py
+   python train_model
    ```
    *Bu betik CNN modelini kurar, 20 epoch boyunca eğitir ve modeli `quickdraw_model.keras` adıyla kaydeder.*
 
@@ -133,6 +138,13 @@ Projede uygulanan Evrişimli Sinir Ağı (CNN) yapısı:
 * **Dense (10, Softmax çıktısı)**
 
 Model **20 Epoch** sonunda test setinde **%93.58 doğruluk (accuracy)** oranına ulaşmıştır.
+
+---
+
+## 🎥 Uygulama Demo Videosu
+
+Uygulamanın kurulumunun yapılması, yerelde çalıştırılması ve tüm özelliklerinin (canlı çizim tahmini, oyun modu vb.) gösterildiği kısa ekran kaydına aşağıdaki linkten ulaşabilirsiniz:
+*   [Uygulama Demo Kaydı (Drive / YouTube Linki)]()
 
 ---
 
