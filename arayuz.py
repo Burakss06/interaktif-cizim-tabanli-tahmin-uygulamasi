@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
+import winsound
 import numpy as np
 from PIL import Image, ImageDraw, ImageTk
 from tahmin_motoru import TahminMotoru
@@ -960,9 +961,9 @@ class CizimTahminArayuzu:
         lbl_diff_title.rol = "yazi_yardimci"
         lbl_diff_title.pack(anchor="w", padx=25, pady=(5, 2))
 
-        self.seg_zorluk = ctk.CTkSegmentedButton(rules_frame, values=["Kolay", "Orta", "Zor"],
+        self.seg_zorluk = ctk.CTkSegmentedButton(rules_frame, values=["Kolay (25 sn)", "Orta (15 sn)", "Zor (10 sn)"],
                                                 command=self.zorluk_secildi)
-        self.seg_zorluk.set(self.aktif_zorluk)
+        self.seg_zorluk.set(f"{self.aktif_zorluk} ({self.oyun_sure_limiti} sn)")
         self.seg_zorluk.pack(fill="x", padx=25, pady=(2, 10))
 
         # Rekorlar Tablosu
@@ -1074,7 +1075,7 @@ class CizimTahminArayuzu:
             return
             
         parent_type = parent.__class__.__name__
-        if parent_type in ["CTkSegmentedButton", "CTkOptionMenu", "CTkSlider", "CTkProgressBar", "CTkComboBox", "CTkSwitch", "CTkCheckBox"]:
+        if parent_type in ["CTkSegmentedButton", "CTkOptionMenu", "CTkSlider", "CTkProgressBar", "CTkComboBox", "CTkSwitch", "CTkCheckBox", "CTkButton", "CTkLabel"]:
             return
             
         for child in parent.winfo_children():
@@ -1083,88 +1084,92 @@ class CizimTahminArayuzu:
                 
             w_type = child.__class__.__name__
             
-            if w_type in ["CTkFrame", "CTkScrollableFrame"]:
-                current_fg = child.cget("fg_color")
-                if current_fg != "transparent" and current_fg is not None:
-                    if child == self.sidebar:
-                        child.configure(fg_color=tema["kutu_bg"])
-                    elif child in [self.cizim_frame, self.sonuc_frame, self.oyun_frame, self.temalar_frame, self.oyun_giris_frame, self.oyun_aktif_frame]:
-                        child.configure(fg_color="transparent")
-                    elif hasattr(child, "rol"):
-                        if child.rol == "dis":
+            try:
+                if w_type in ["CTkFrame", "CTkScrollableFrame"]:
+                    current_fg = child.cget("fg_color")
+                    if current_fg != "transparent" and current_fg is not None:
+                        if child == self.sidebar:
                             child.configure(fg_color=tema["kutu_bg"])
-                        elif child.rol == "ic":
-                            child.configure(fg_color=tema["alan_bg"])
-                        elif child.rol == "cerceve":
-                            child.configure(fg_color=tema["surface0"])
-                        elif child.rol == "border":
-                            child.configure(fg_color=tema["border_renk"])
-                    else:
-                        child.configure(fg_color=tema["kutu_bg"])
-                
-                try:
-                    if child.cget("border_width") > 0:
-                        if hasattr(child, "rol") and child.rol == "cerceve":
-                            child.configure(border_color=tema["mavi"])
+                        elif child in [self.cizim_frame, self.sonuc_frame, self.oyun_frame, self.temalar_frame, self.oyun_giris_frame, self.oyun_aktif_frame]:
+                            child.configure(fg_color="transparent")
+                        elif hasattr(child, "rol"):
+                            if child.rol == "dis":
+                                child.configure(fg_color=tema["kutu_bg"])
+                            elif child.rol == "ic":
+                                child.configure(fg_color=tema["alan_bg"])
+                            elif child.rol == "cerceve":
+                                child.configure(fg_color=tema["surface0"])
+                            elif child.rol == "border":
+                                child.configure(fg_color=tema["border_renk"])
                         else:
-                            child.configure(border_color=tema["border_renk"])
-                except Exception:
-                    pass
+                            child.configure(fg_color=tema["kutu_bg"])
                     
-            elif w_type == "CTkLabel":
-                if hasattr(child, "rol"):
-                    rol = child.rol
-                    if rol == "yazi_ana":
+                    try:
+                        if child.cget("border_width") > 0:
+                            if hasattr(child, "rol") and child.rol == "cerceve":
+                                child.configure(border_color=tema["mavi"])
+                            else:
+                                child.configure(border_color=tema["border_renk"])
+                    except Exception:
+                        pass
+                        
+                elif w_type == "CTkLabel":
+                    if hasattr(child, "rol"):
+                        rol = child.rol
+                        if rol == "yazi_ana":
+                            child.configure(text_color=tema["yazi_ana"])
+                        elif rol == "yazi_yardimci":
+                            child.configure(text_color=tema["yazi_yardimci"])
+                        elif rol == "yazi_aciklama":
+                            child.configure(text_color=tema["yazi_aciklama"])
+                        elif rol == "logo":
+                            child.configure(text_color=tema["mavi"])
+                        elif rol == "yesil":
+                            child.configure(text_color=tema["yesil"])
+                        elif rol == "mavi":
+                            child.configure(text_color=tema["mavi"])
+                        elif rol == "rozet":
+                            child.configure(text_color=tema["yazi_ana"], fg_color=tema["surface0"])
+                    else:
                         child.configure(text_color=tema["yazi_ana"])
-                    elif rol == "yazi_yardimci":
-                        child.configure(text_color=tema["yazi_yardimci"])
-                    elif rol == "yazi_aciklama":
-                        child.configure(text_color=tema["yazi_aciklama"])
-                    elif rol == "logo":
-                        child.configure(text_color=tema["mavi"])
-                    elif rol == "yesil":
-                        child.configure(text_color=tema["yesil"])
-                    elif rol == "mavi":
-                        child.configure(text_color=tema["mavi"])
-                    elif rol == "rozet":
-                        child.configure(text_color=tema["yazi_ana"], fg_color=tema["surface0"])
-                else:
-                    child.configure(text_color=tema["yazi_ana"])
+                        
+                elif w_type == "CTkButton":
+                    if hasattr(child, "rol"):
+                        if child.rol == "temizle":
+                            child.configure(fg_color=tema["surface0"], hover_color=tema["border_renk"], text_color=tema["kirmizi"])
+                        elif child.rol == "aktif_sekme":
+                            child.configure(fg_color=tema["mavi"], text_color=tema["btn_text"], hover_color=tema["mavi_hover"])
+                        elif child.rol == "pasif_sekme":
+                            child.configure(fg_color="transparent", text_color=tema["yazi_ana"], hover_color=tema["surface0"])
+                    else:
+                        child.configure(fg_color=tema["mavi"], hover_color=tema["mavi_hover"], text_color=tema["btn_text"])
+                        
+                elif w_type == "CTkProgressBar":
+                    p_color = tema["mavi"] if (hasattr(child, "rol") and child.rol == "mavi") else tema["yesil"]
+                    child.configure(progress_color=p_color, fg_color=tema["surface0"])
                     
-            elif w_type == "CTkButton":
-                if hasattr(child, "rol"):
-                    if child.rol == "temizle":
-                        child.configure(fg_color=tema["surface0"], hover_color=tema["border_renk"], text_color=tema["kirmizi"])
-                    elif child.rol == "aktif_sekme":
-                        child.configure(fg_color=tema["mavi"], text_color=tema["btn_text"], hover_color=tema["mavi_hover"])
-                    elif child.rol == "pasif_sekme":
-                        child.configure(fg_color="transparent", text_color=tema["yazi_ana"], hover_color=tema["surface0"])
-                else:
-                    child.configure(fg_color=tema["mavi"], hover_color=tema["mavi_hover"], text_color=tema["btn_text"])
+                elif w_type == "CTkSlider":
+                    child.configure(button_color=tema["mavi"], button_hover_color=tema["mavi_hover"], fg_color=tema["surface0"], progress_color=tema["mavi"])
                     
-            elif w_type == "CTkProgressBar":
-                p_color = tema["mavi"] if (hasattr(child, "rol") and child.rol == "mavi") else tema["yesil"]
-                child.configure(progress_color=p_color, fg_color=tema["surface0"])
+                elif w_type == "CTkSegmentedButton":
+                    child.configure(
+                        selected_color=tema["mavi"],
+                        selected_hover_color=tema["mavi_hover"],
+                        fg_color=tema["surface0"],
+                        unselected_color=tema["kutu_bg"],
+                        unselected_hover_color=tema["surface0"],
+                        text_color=tema["yazi_ana"]
+                    )
+                    
+                elif w_type == "CTkOptionMenu":
+                    child.configure(fg_color=tema["surface0"], button_color=tema["surface0"], button_hover_color=tema["border_renk"], 
+                                    dropdown_fg_color=tema["kutu_bg"], dropdown_text_color=tema["yazi_ana"], text_color=tema["yazi_ana"])
                 
-            elif w_type == "CTkSlider":
-                child.configure(button_color=tema["mavi"], button_hover_color=tema["mavi_hover"], fg_color=tema["surface0"], progress_color=tema["mavi"])
-                
-            elif w_type == "CTkSegmentedButton":
-                child.configure(
-                    selected_color=tema["mavi"],
-                    selected_hover_color=tema["mavi_hover"],
-                    fg_color=tema["surface0"],
-                    unselected_color=tema["kutu_bg"],
-                    unselected_hover_color=tema["surface0"],
-                    text_color=tema["yazi_ana"]
-                )
-                
-            elif w_type == "CTkOptionMenu":
-                child.configure(fg_color=tema["surface0"], button_color=tema["surface0"], button_hover_color=tema["border_renk"], 
-                                dropdown_fg_color=tema["kutu_bg"], dropdown_text_color=tema["yazi_ana"], text_color=tema["yazi_ana"])
-            
-            elif w_type == "Canvas":
-                child.configure(bg="white")
+                elif w_type == "Canvas":
+                    child.configure(bg="white")
+            except Exception as e:
+                # Renklendirme sirasinda olusabilecek TclError vb. hatalar pas gecilir (ornegin silinmis resim referanslari)
+                pass
                 
             self._widget_renklendir(child, tema)
 
@@ -1911,6 +1916,12 @@ class CizimTahminArayuzu:
             text_color=self.aktif_tema["yesil"]
         )
         
+        # Kazanma ses efekti (winsound)
+        try:
+            winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS | winsound.SND_ASYNC)
+        except Exception:
+            pass
+            
         # Konfeti patlat
         self.konfeti_animasyonu_baslat()
 
@@ -1921,6 +1932,12 @@ class CizimTahminArayuzu:
         
         self.oyun_kelime_label.configure(text_color=self.aktif_tema["kirmizi"])
         self.oyun_durum_label.configure(text="Zaman doldu! Kombo Sıfırlandı. 😢", text_color=self.aktif_tema["kirmizi"])
+        
+        # Kaybetme ses efekti (winsound)
+        try:
+            winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
+        except Exception:
+            pass
 
     # ==========================================
     # 🏆 REKORLAR, ZORLUK, KONFETİ VE GÖRSEL DÖNGÜLER
@@ -1955,10 +1972,11 @@ class CizimTahminArayuzu:
                 pass
 
     def zorluk_secildi(self, value):
-        self.aktif_zorluk = value
-        if value == "Kolay":
+        base_value = value.split()[0]
+        self.aktif_zorluk = base_value
+        if base_value == "Kolay":
             self.oyun_sure_limiti = 25
-        elif value == "Orta":
+        elif base_value == "Orta":
             self.oyun_sure_limiti = 15
         else: # Zor
             self.oyun_sure_limiti = 10

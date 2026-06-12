@@ -27,14 +27,10 @@ class TahminMotoru:
             print("Yapay zeka modeli başarıyla yükleniyor...")
             self.model = tf.keras.models.load_model(model_yolu)
             try:
-                # İlk Conv2D katmanının aktivasyonunu ve final tahmin çıktısını alıyoruz
-                self.activation_model = tf.keras.Model(
-                    inputs=self.model.inputs,
-                    outputs=[self.model.layers[0].output, self.model.output]
-                )
-            except Exception as e:
-                print("Aktivasyon modeli oluşturulamadı:", e)
-                self.activation_model = None
+                # Modeli sahte veriyle bir kere çalıştırarak Keras'ın modeli ısıtmasını/hazırlamasını sağlıyoruz.
+                self.model(np.zeros((1, 28, 28, 1)))
+            except Exception:
+                pass
             print("Model yükleme tamamlandı! Tahmine hazır.")
         else:
             raise FileNotFoundError(f"Hata: '{model_yolu}' dosyası bulunamadı! Lütfen dosyanın main.py ile aynı yerde olduğundan emin olun.")
@@ -130,8 +126,10 @@ class TahminMotoru:
         model_girisi = matris.reshape(1, 28, 28, 1)
         
         # 5. GERÇEK YAPAY ZEKA TAHMİNİ VE AKTİVASYON HARİTASI
-        if hasattr(self, "activation_model") and self.activation_model is not None:
-            conv_out, tahminler = self.activation_model.predict(model_girisi, verbose=0)
+        tahminler = self.model.predict(model_girisi, verbose=0)
+        try:
+            # İlk Conv2D katmanının çıktısını doğrudan alıyoruz (Eager Tensor -> Numpy)
+            conv_out = self.model.layers[0](model_girisi).numpy()
             # conv_out shape: (1, 26, 26, 32) -> Kanalların ortalamasını alıp 2D yapıyoruz (26x26)
             act_map = np.mean(conv_out[0], axis=-1)
             # 0.0 - 1.0 arasına normalize et
@@ -141,9 +139,9 @@ class TahminMotoru:
                 act_map = (act_map - min_val) / (max_val - min_val)
             else:
                 act_map = np.zeros_like(act_map)
-        else:
-            tahminler = self.model.predict(model_girisi, verbose=0)
-            act_map = matris # fallback
+        except Exception as e:
+            # Aktivasyon haritası alınamazsa çizim matrisini geri dönüş olarak kullan
+            act_map = matris
         
         # En yüksek olasılığa sahip sınıfın indeksini bul (Örn: 2 çıktıysa 'Araba')
         en_yuksek_indeks = np.argmax(tahminler[0])
