@@ -207,3 +207,6 @@ marimo/_lsp/
 __marimo__/
 data/raw/
 data/processed/
+
+# Oyun yüksek skorlar dosyası
+high_scores.json
