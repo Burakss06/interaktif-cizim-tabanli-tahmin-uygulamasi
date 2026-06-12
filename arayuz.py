@@ -1799,6 +1799,10 @@ class CizimTahminArayuzu:
         self.oyun_imlec_guncelle()
 
     def yeni_oyun_baslat(self):
+        # Eğer oyun aktifken "Yeni Kelime" butonuna basılıp geçildiyse komboyu sıfırla
+        if getattr(self, "oyun_aktif", False):
+            self.oyun_kombo = 0
+
         if hasattr(self, "oyun_timer_id") and self.oyun_timer_id:
             self.pencere.after_cancel(self.oyun_timer_id)
             self.oyun_timer_id = None
@@ -1814,6 +1818,11 @@ class CizimTahminArayuzu:
         else: # Zor
             pool = ["Bisiklet", "Kedi", "Araba", "Kuş", "Balık"]
             self.oyun_sure_limiti = 10
+            
+        # Son hedef kelimeyi saklayıp art arda aynı kelimenin gelmesini engelliyoruz
+        prev_word = getattr(self, "hedef_kelime", None)
+        if prev_word and prev_word in pool and len(pool) > 1:
+            pool = [w for w in pool if w != prev_word]
             
         self.hedef_kelime = random.choice(pool)
         self.oyun_sure = self.oyun_sure_limiti
