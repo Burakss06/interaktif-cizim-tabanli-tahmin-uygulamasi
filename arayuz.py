@@ -1166,8 +1166,8 @@ class CizimTahminArayuzu:
                 
                 elif w_type == "Canvas":
                     child.configure(bg="white")
-            except Exception as e:
-                # Renklendirme sirasinda olusabilecek TclError vb. hatalar pas gecilir (ornegin silinmis resim referanslari)
+            except Exception:
+                # Dinamik tema geçişi sırasında silinen veya erişilemeyen widget bileşenlerinden kaynaklı hataları yoksay
                 pass
                 
             self._widget_renklendir(child, tema)
@@ -1959,6 +1959,7 @@ class CizimTahminArayuzu:
                 pass
 
     def zorluk_secildi(self, value):
+        # Arayüzdeki "Kolay (25 sn)" gibi metinlerden sadece zorluk derecesini ayıkla
         base_value = value.split()[0]
         self.aktif_zorluk = base_value
         if base_value == "Kolay":

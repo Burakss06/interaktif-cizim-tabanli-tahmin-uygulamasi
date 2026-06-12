@@ -27,7 +27,7 @@ class TahminMotoru:
             print("Yapay zeka modeli başarıyla yükleniyor...")
             self.model = tf.keras.models.load_model(model_yolu)
             try:
-                # Modeli sahte veriyle bir kere çalıştırarak Keras'ın modeli ısıtmasını/hazırlamasını sağlıyoruz.
+                # İlk tahmin sırasındaki gecikmeleri ve katman uyarılarını önlemek için modeli boş veriyle ön yükleme yap
                 self.model(np.zeros((1, 28, 28, 1)))
             except Exception:
                 pass
@@ -125,7 +125,7 @@ class TahminMotoru:
         # (1 adet resim, 28 genişlik, 28 yükseklik, 1 renk kanalı)
         model_girisi = matris.reshape(1, 28, 28, 1)
         
-        # 5. GERÇEK YAPAY ZEKA TAHMİNİ VE PREVIEW HARİTASI
+        # 5. Yapay zeka tahmini ve önizleme matrisinin ayarlanması
         tahminler = self.model.predict(model_girisi, verbose=0)
         act_map = matris
         
