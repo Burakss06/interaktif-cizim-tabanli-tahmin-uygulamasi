@@ -125,23 +125,9 @@ class TahminMotoru:
         # (1 adet resim, 28 genişlik, 28 yükseklik, 1 renk kanalı)
         model_girisi = matris.reshape(1, 28, 28, 1)
         
-        # 5. GERÇEK YAPAY ZEKA TAHMİNİ VE AKTİVASYON HARİTASI
+        # 5. GERÇEK YAPAY ZEKA TAHMİNİ VE PREVIEW HARİTASI
         tahminler = self.model.predict(model_girisi, verbose=0)
-        try:
-            # İlk Conv2D katmanının çıktısını doğrudan alıyoruz (Eager Tensor -> Numpy)
-            conv_out = self.model.layers[0](model_girisi).numpy()
-            # conv_out shape: (1, 26, 26, 32) -> Kanalların ortalamasını alıp 2D yapıyoruz (26x26)
-            act_map = np.mean(conv_out[0], axis=-1)
-            # 0.0 - 1.0 arasına normalize et
-            min_val = act_map.min()
-            max_val = act_map.max()
-            if max_val > min_val:
-                act_map = (act_map - min_val) / (max_val - min_val)
-            else:
-                act_map = np.zeros_like(act_map)
-        except Exception as e:
-            # Aktivasyon haritası alınamazsa çizim matrisini geri dönüş olarak kullan
-            act_map = matris
+        act_map = matris
         
         # En yüksek olasılığa sahip sınıfın indeksini bul (Örn: 2 çıktıysa 'Araba')
         en_yuksek_indeks = np.argmax(tahminler[0])
