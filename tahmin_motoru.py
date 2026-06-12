@@ -27,14 +27,10 @@ class TahminMotoru:
             print("Yapay zeka modeli başarıyla yükleniyor...")
             self.model = tf.keras.models.load_model(model_yolu)
             try:
-                # İlk Conv2D katmanının aktivasyonunu ve final tahmin çıktısını alıyoruz
-                self.activation_model = tf.keras.Model(
-                    inputs=self.model.inputs,
-                    outputs=[self.model.layers[0].output, self.model.output]
-                )
-            except Exception as e:
-                print("Aktivasyon modeli oluşturulamadı:", e)
-                self.activation_model = None
+                # İlk tahmin sırasındaki gecikmeleri ve katman uyarılarını önlemek için modeli boş veriyle ön yükleme yap
+                self.model(np.zeros((1, 28, 28, 1)))
+            except Exception:
+                pass
             print("Model yükleme tamamlandı! Tahmine hazır.")
         else:
             raise FileNotFoundError(f"Hata: '{model_yolu}' dosyası bulunamadı! Lütfen dosyanın main.py ile aynı yerde olduğundan emin olun.")
@@ -129,21 +125,9 @@ class TahminMotoru:
         # (1 adet resim, 28 genişlik, 28 yükseklik, 1 renk kanalı)
         model_girisi = matris.reshape(1, 28, 28, 1)
         
-        # 5. GERÇEK YAPAY ZEKA TAHMİNİ VE AKTİVASYON HARİTASI
-        if hasattr(self, "activation_model") and self.activation_model is not None:
-            conv_out, tahminler = self.activation_model.predict(model_girisi, verbose=0)
-            # conv_out shape: (1, 26, 26, 32) -> Kanalların ortalamasını alıp 2D yapıyoruz (26x26)
-            act_map = np.mean(conv_out[0], axis=-1)
-            # 0.0 - 1.0 arasına normalize et
-            min_val = act_map.min()
-            max_val = act_map.max()
-            if max_val > min_val:
-                act_map = (act_map - min_val) / (max_val - min_val)
-            else:
-                act_map = np.zeros_like(act_map)
-        else:
-            tahminler = self.model.predict(model_girisi, verbose=0)
-            act_map = matris # fallback
+        # 5. Yapay zeka tahmini ve önizleme matrisinin ayarlanması
+        tahminler = self.model.predict(model_girisi, verbose=0)
+        act_map = matris
         
         # En yüksek olasılığa sahip sınıfın indeksini bul (Örn: 2 çıktıysa 'Araba')
         en_yuksek_indeks = np.argmax(tahminler[0])
