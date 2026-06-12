@@ -138,7 +138,6 @@ Model **20 Epoch** sonunda test setinde **%93.58 doğruluk (accuracy)** oranına
 
 ## 👥 Proje Ekibi & Görev Dağılımı
 
-*(Formda belirtilen görev dağılımı doğrultusunda burayı doldurunuz)*
 * **Burak Şenol (Burakss06):** Kullanıcı Arayüzü Tasarımı & Geliştirme (CustomTkinter), Aktivasyon Haritası ve Combo/Skor Sistemi Entegrasyonu, Hata Giderme ve Tema/Görünüm Kararlılaştırmaları.
 * **Taylan Özer (taylannozerr):** Yapay Zeka Model Mimarisi Tasarımı, Model Eğitimi (`train_model` betiği) ve Sınıf Sayısının 5'ten 10'a Çıkarılarak Modelin Eğitilmesi.
 * **Eylem Cafcav (eylem837):** Veri Seti Hazırlama Betiği (`prepare_dataset.py`), Gerekli Bağımlılıklar (`requirements.txt`) ve Örnek Görselleştirme Aracı (`visualize_samples.py`) Hazırlanması.
