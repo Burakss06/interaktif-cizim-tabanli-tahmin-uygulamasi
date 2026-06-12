@@ -1,10 +1,15 @@
 import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
-import winsound
 import numpy as np
 from PIL import Image, ImageDraw, ImageTk
 from tahmin_motoru import TahminMotoru
+import threading
+
+try:
+    import winsound
+except ImportError:
+    winsound = None
 
 class ToolTip:
     def __init__(self, widget, text, delay=300):
@@ -1886,6 +1891,28 @@ class CizimTahminArayuzu:
         if tahmin == self.hedef_kelime and guven >= 45:
             self.oyun_kazandin(guven)
 
+    def oyun_sesi_cal(self, basari=True):
+        if winsound is None:
+            return
+            
+        def run():
+            try:
+                if basari:
+                    # Atari tarzı neşeli, yükselen ses arpeji (Victory sound)
+                    winsound.Beep(523, 80)   # C5 (Do)
+                    winsound.Beep(659, 80)   # E5 (Mi)
+                    winsound.Beep(784, 80)   # G5 (Sol)
+                    winsound.Beep(1046, 200) # C6 (İnce Do)
+                else:
+                    # Atari tarzı hüzünlü, alçalan ses (Fail sound)
+                    winsound.Beep(392, 120)  # G4 (Sol)
+                    winsound.Beep(349, 120)  # F4 (Fa)
+                    winsound.Beep(294, 250)  # D4 (Re)
+            except Exception:
+                pass
+
+        threading.Thread(target=run, daemon=True).start()
+
     def oyun_kazandin(self, guven):
         self.oyun_aktif = False
         if hasattr(self, "oyun_timer_id") and self.oyun_timer_id:
@@ -1917,10 +1944,7 @@ class CizimTahminArayuzu:
         )
         
         # Kazanma ses efekti (winsound)
-        try:
-            winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS | winsound.SND_ASYNC)
-        except Exception:
-            pass
+        self.oyun_sesi_cal(True)
             
         # Konfeti patlat
         self.konfeti_animasyonu_baslat()
@@ -1934,10 +1958,7 @@ class CizimTahminArayuzu:
         self.oyun_durum_label.configure(text="Zaman doldu! Kombo Sıfırlandı. 😢", text_color=self.aktif_tema["kirmizi"])
         
         # Kaybetme ses efekti (winsound)
-        try:
-            winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
-        except Exception:
-            pass
+        self.oyun_sesi_cal(False)
 
     # ==========================================
     # 🏆 REKORLAR, ZORLUK, KONFETİ VE GÖRSEL DÖNGÜLER
