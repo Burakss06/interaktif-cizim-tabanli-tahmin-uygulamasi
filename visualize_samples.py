@@ -6,7 +6,7 @@ X_train = np.load("data/processed/X_train.npy")
 y_train = np.load("data/processed/y_train.npy")
 
 # Sınıf isimleri
-CLASSES = ["cat", "house", "car", "apple", "sun"]
+CLASSES = ["cat", "house", "car", "apple", "sun", "bird", "tree", "bicycle", "fish", "flower"]
 
 # İlk örneği seç
 image = X_train[0]
