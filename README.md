@@ -67,10 +67,10 @@ interaktif-cizim-tabanli-tahmin-uygulamasi-main/
 ├── arayuz.py                 # CustomTkinter arayüz bileşenleri ve çizim tahtası mantığı
 ├── tahmin_motoru.py          # Çizimleri ön-işleme, normalize etme ve model tahmini
 ├── prepare_dataset.py        # Ham verileri okuyup normalize ederek eğitim setini hazırlayan betik
-├── train_model.py            # CNN model mimarisini kurup eğiten betik (train_model dosyası .py olarak da kullanılabilir)
+├── train_model               # CNN model mimarisini kurup eğiten orijinal eğitim betiği
 ├── visualize_samples.py      # Eğitim verilerinden örnekleri görselleştiren test aracı
 ├── quickdraw_model.keras     # Eğitilmiş Keras model dosyası (Yaklaşık 93.5% doğruluk oranına sahip)
-├── high_scores.json          # Arayüzdeki oyun skorlarının yerel olarak kaydedildiği dosya
+├── high_scores.json          # Arayüzdeki oyun skorlarının yerel olarak kaydedildiği dosya (İlk çalışmada otomatik oluşturulur, Git dışı bırakılmıştır)
 ├── requirements.txt          # Gerekli bağımlılıklar listesi
 ├── LICENSE                   # Proje lisans dosyası
 └── README.md                 # Proje açıklama ve kurulum dosyası (Bu dosya)
@@ -96,7 +96,7 @@ Projede Google Quick Draw datasetinin `numpy_bitmap` formatındaki `.npy` dosyal
 
 ### Veri Seti İndirme Linki:
 Ham veri setlerine Google Cloud Storage üzerinden erişebilirsiniz:
-[Google Quick Draw Dataset - numpy_bitmap](https://console.cloud.google.com/gstorage/browser/quickdraw_dataset/full/numpy_bitmap)
+[Google Quick Draw Dataset - numpy_bitmap](https://console.cloud.google.com/storage/browser/quickdraw_dataset/full/numpy_bitmap)
 
 ### Verileri Hazırlama ve Model Eğitme Adımları:
 1. `data/raw/` adında bir klasör oluşturun ve yukarıdaki linkten indirdiğiniz 10 sınıfın `.npy` dosyalarını bu klasöre kaydedin (Örn: `cat.npy`, `house.npy` vb.).
@@ -139,8 +139,9 @@ Model **20 Epoch** sonunda test setinde **%93.58 doğruluk (accuracy)** oranına
 ## 👥 Proje Ekibi & Görev Dağılımı
 
 *(Formda belirtilen görev dağılımı doğrultusunda burayı doldurunuz)*
-* **Öğrenci 1:** [Numara - İsim Soyisim] - Model Eğitimi, Tahmin Motoru & Veri Ön İşleme
-* **Öğrenci 2:** [Numara - İsim Soyisim] - GUI Geliştirme (CustomTkinter), Raporlama & Dokümantasyon
+* **Burak Şenol (Burakss06):** Kullanıcı Arayüzü Tasarımı & Geliştirme (CustomTkinter), Aktivasyon Haritası ve Combo/Skor Sistemi Entegrasyonu, Hata Giderme ve Tema/Görünüm Kararlılaştırmaları.
+* **Taylan Özer (taylannozerr):** Yapay Zeka Model Mimarisi Tasarımı, Model Eğitimi (`train_model` betiği) ve Sınıf Sayısının 5'ten 10'a Çıkarılarak Modelin Eğitilmesi.
+* **Eylem Cafcav (eylem837):** Veri Seti Hazırlama Betiği (`prepare_dataset.py`), Gerekli Bağımlılıklar (`requirements.txt`) ve Örnek Görselleştirme Aracı (`visualize_samples.py`) Hazırlanması.
 
 ---
 *Bu proje Bursa Uludağ Üniversitesi Bilgisayar Mühendisliği Python Programlama Dersi final projesi teslim kurallarına uygun olarak hazırlanmıştır.*
