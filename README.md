@@ -16,6 +16,12 @@ Proje, Google'ın **Quick Draw** veri setini kullanarak eğittiği bir **Evrişi
 
 ---
 
+## 🎥 Uygulama Demo Videosu
+
+![Uygulama Çalışma Demosu](demo.gif)
+
+---
+
 ## 🛠️ Donanım ve Yazılım Gereksinimleri
 
 ### Yazılım Gereksinimleri
@@ -138,13 +144,6 @@ Projede uygulanan Evrişimli Sinir Ağı (CNN) yapısı:
 * **Dense (10, Softmax çıktısı)**
 
 Model **20 Epoch** sonunda test setinde **%93.58 doğruluk (accuracy)** oranına ulaşmıştır.
-
----
-
-## 🎥 Uygulama Demo Videosu
-
-Uygulamanın kurulumunun yapılması, yerelde çalıştırılması ve tüm özelliklerinin (canlı çizim tahmini, oyun modu vb.) gösterildiği kısa ekran kaydına aşağıdaki linkten ulaşabilirsiniz:
-*   [Uygulama Demo Kaydı (Drive / YouTube Linki)]()
 
 ---
 
